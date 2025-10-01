@@ -10,13 +10,17 @@ void setup() {
   size(800, 600);
   frameRate(60);
   for (int i = 0; i < TRIANGLE_COUNT; i++) {
-    float x = random(width);
-    float y = random(height);
+    float x = random(50, width-50);
+    float y = random(50, height-50);
     Agent agent = new Agent(#FF0000, new PVector(x, y));
     float angle = random(TWO_PI);
     float speed = random(2, 5);
     agent.velocity = new PVector(cos(angle) * speed, sin(angle) * speed);
     agents.add(agent);
+  }
+  
+  if (agents.size() > 0) {
+    agents.get(0).becomeZombie();
   }
   
   Path path1 = new Path();
@@ -51,9 +55,9 @@ void setup() {
   path4.addPoint(150, 150);
   paths.add(path4);
   
-  obstacles.add(new Obstacle(250, 250, 40));
-  obstacles.add(new Obstacle(550, 350, 50));
-  obstacles.add(new Obstacle(400, 450, 35));
+  obstacles.add(new Obstacle(300, 200, 35, 0));
+  obstacles.add(new Obstacle(500, 350, 40, 1));
+  obstacles.add(new Obstacle(200, 450, 38, 2));
 }
 
 void keyPressed() {
@@ -122,6 +126,22 @@ void keyPressed() {
       currentPathIndex = 0;
     }
   }
+  
+  if (key == 'r' || key == 'R') {
+    agents.clear();
+    for (int i = 0; i < TRIANGLE_COUNT; i++) {
+      float x = random(50, width-50);
+      float y = random(50, height-50);
+      Agent agent = new Agent(#FF0000, new PVector(x, y));
+      float angle = random(TWO_PI);
+      float speed = random(2, 5);
+      agent.velocity = new PVector(cos(angle) * speed, sin(angle) * speed);
+      agents.add(agent);
+    }
+    if (agents.size() > 0) {
+      agents.get(0).becomeZombie();
+    }
+  }
 }
 
 void draw() {
@@ -137,10 +157,8 @@ void draw() {
     paths.get(currentPathIndex).show();
   }
   
-  if (agents.get(0).behaviors.get("obstacleAvoidance")) {
-    for (Obstacle obs : obstacles) {
-      obs.show();
-    }
+  for (Obstacle obs : obstacles) {
+    obs.show();
   }
   
   drawUI();
@@ -148,38 +166,48 @@ void draw() {
   for (Agent a : agents) {
     a.update();
     a.show(); 
+    a.checkCapture(agents);
+    
     PVector mouse = new PVector(mouseX, mouseY);
     PVector force = new PVector(0, 0);
+    
+    if (a.isZombie) {
+      force.add(a.pursueNearestHuman(agents).mult(a.pursueMultiplier));
+      force.add(a.separateZombies(agents).mult(a.separationMultiplier));
+      force.add(a.alignZombies(agents).mult(a.alignmentMultiplier));
+      force.add(a.cohesionZombies(agents).mult(a.cohesionMultiplier));
+    } else {
+      force.add(a.evadeNearestZombie(agents).mult(a.evadeMultiplier));
+    }
     if (a.behaviors.get("seek")) {
-      force.add(a.seek(mouse));
-     
+      force.add(a.seek(mouse).mult(a.seekMultiplier));
     }
     if (a.behaviors.get("flee")) {
-      force.add(a.flee(mouse).mult(1.5));
+      force.add(a.flee(mouse).mult(a.fleeMultiplier));
     }
     if (a.behaviors.get("arrive")) {
-      force.add(a.arrive(mouse));
+      force.add(a.arrive(mouse).mult(a.arriveMultiplier));
     }
     if (a.behaviors.get("wallAvoidance")) {
-      force.add(a.wallAvoidance().mult(5));
+      force.add(a.wallAvoidance().mult(6));
     }
-    if (a.behaviors.get("separation")) {
-      force.add(a.separate(agents).mult(2.0));
+    if (a.behaviors.get("separation") && !a.isZombie) {
+      force.add(a.separate(agents).mult(a.separationMultiplier));
     }
-    if (a.behaviors.get("alignment")) {
-      force.add(a.align(agents));
+    if (a.behaviors.get("alignment") && !a.isZombie) {
+      force.add(a.align(agents).mult(a.alignmentMultiplier));
     }
-    if (a.behaviors.get("cohesion")) {
-      force.add(a.cohesion(agents).mult(1.3));
+    if (a.behaviors.get("cohesion") && !a.isZombie) {
+      force.add(a.cohesion(agents).mult(a.cohesionMultiplier));
     }
     if (a.behaviors.get("wander")) {
-      force.add(a.wander().mult(0.2));
+      force.add(a.wander().mult(a.wanderMultiplier));
     }
     if (a.behaviors.get("obstacleAvoidance")) {
-      force.add(a.avoidObstacles(obstacles).mult(3));
+      force.add(a.avoidObstacles(obstacles).mult(a.obstacleAvoidanceMultiplier));
     }
     if (a.behaviors.get("pathFollow")) {
-      force.add(a.follow(paths.get(currentPathIndex)).mult(5.0));
+      force.add(a.follow(paths.get(currentPathIndex)).mult(a.pathFollowMultiplier));
     }
     a.applyForce(force);
     }
@@ -194,6 +222,33 @@ void drawUI() {
   int lineHeight = 20;
   int xPos = 30;
   
+  int zombieCount = 0;
+  int humanCount = 0;
+  for (Agent a : agents) {
+    if (a.isZombie) {
+      zombieCount++;
+    } else {
+      humanCount++;
+    }
+  }
+  
+  fill(0, 255, 0);
+  text("ZOMBIES: " + zombieCount, xPos, yPos);
+  yPos += lineHeight;
+  
+  fill(255, 0, 0);
+  text("HUMANOS: " + humanCount, xPos, yPos);
+  yPos += lineHeight + 10;
+  
+  if (humanCount == 0) {
+    fill(255, 255, 0);
+    textSize(18);
+    text("¡LOS ZOMBIES HAN GANADO!", xPos, yPos);
+    textSize(14);
+    yPos += lineHeight + 10;
+  }
+  
+  fill(200, 220, 255);
   text("CONTROLES:", xPos, yPos);
   yPos += lineHeight + 5;
   
@@ -229,6 +284,8 @@ void drawUI() {
   
   fill(200, 220, 255);
   text("← → : Cambiar Path (" + (currentPathIndex + 1) + "/" + paths.size() + ")", xPos, yPos);
+  yPos += lineHeight;
+  text("R : Reiniciar simulación", xPos, yPos);
 }
 
 void drawBehaviorStatus(String label, boolean isActive, int x, int y) {

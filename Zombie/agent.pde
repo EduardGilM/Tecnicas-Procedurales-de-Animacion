@@ -1,5 +1,5 @@
 class Agent {
-    color c = #FF0000; // Color rojo
+    color c = #FF0000;
     float r = 6;
     float maxspeed = 8;
     PVector velocity = new PVector(0, 0);
@@ -11,6 +11,21 @@ class Agent {
     float wanderRadius = 25;
     float wanderDistance = 80;
     float wanderChange = 0.3;
+    
+    boolean isZombie = false;
+    float captureRadius = 15;
+    
+    float seekMultiplier;
+    float fleeMultiplier;
+    float arriveMultiplier;
+    float wanderMultiplier;
+    float pursueMultiplier;
+    float evadeMultiplier;
+    float pathFollowMultiplier;
+    float obstacleAvoidanceMultiplier;
+    float separationMultiplier;
+    float alignmentMultiplier;
+    float cohesionMultiplier;
 
   Agent(color c, PVector position) {
     this.c = c;
@@ -19,15 +34,27 @@ class Agent {
     this.behaviors.put("seek", false);
     this.behaviors.put("flee", false);
     this.behaviors.put("arrive", false);
-    this.behaviors.put("wander", false);
+    this.behaviors.put("wander", true);
     this.behaviors.put("pursue", false);
     this.behaviors.put("evade", false);
     this.behaviors.put("pathFollow", false);
-    this.behaviors.put("obstacleAvoidance", false);
-    this.behaviors.put("wallAvoidance", false);
+    this.behaviors.put("obstacleAvoidance", true);
+    this.behaviors.put("wallAvoidance", true);
     this.behaviors.put("separation", false);
     this.behaviors.put("alignment", false);
     this.behaviors.put("cohesion", false);
+    
+    this.seekMultiplier = random(0.5, 2.0);
+    this.fleeMultiplier = random(0.8, 2.5);
+    this.arriveMultiplier = random(0.5, 1.8);
+    this.wanderMultiplier = random(0.1, 0.3);
+    this.pursueMultiplier = random(0.8, 2.2);
+    this.evadeMultiplier = random(1.0, 2.5);
+    this.pathFollowMultiplier = random(0.7, 1.5);
+    this.obstacleAvoidanceMultiplier = random(2.0, 4.0);
+    this.separationMultiplier = random(1.0, 2.5);
+    this.alignmentMultiplier = random(0.5, 1.5);
+    this.cohesionMultiplier = random(0.8, 2.0);
   }
 
   void setBehavior(String behavior) {
@@ -274,7 +301,135 @@ class Agent {
     vertex(-this.r * 2, this.r);
     endShape(CLOSE);
     pop();
-
+  }
+  
+  void becomeZombie() {
+    this.isZombie = true;
+    this.c = color(0, 255, 0);
+    this.behaviors.put("separation", true);
+    this.behaviors.put("alignment", true);
+    this.behaviors.put("cohesion", true);
+  }
+  
+  PVector pursueNearestHuman(ArrayList<Agent> agents) {
+    Agent target = null;
+    float minDistance = Float.MAX_VALUE;
+    
+    for (Agent other : agents) {
+      if (!other.isZombie && other != this) {
+        float d = PVector.dist(this.position, other.position);
+        if (d < minDistance) {
+          minDistance = d;
+          target = other;
+        }
+      }
+    }
+    
+    if (target != null) {
+      return this.seek(target.position);
+    }
+    return new PVector(0, 0);
+  }
+  
+  PVector evadeNearestZombie(ArrayList<Agent> agents) {
+    Agent threat = null;
+    float minDistance = Float.MAX_VALUE;
+    
+    for (Agent other : agents) {
+      if (other.isZombie && other != this) {
+        float d = PVector.dist(this.position, other.position);
+        if (d < minDistance) {
+          minDistance = d;
+          threat = other;
+        }
+      }
+    }
+    
+    if (threat != null) {
+      return this.flee(threat.position);
+    }
+    return new PVector(0, 0);
+  }
+  
+  void checkCapture(ArrayList<Agent> agents) {
+    if (this.isZombie) {
+      for (Agent other : agents) {
+        if (!other.isZombie) {
+          float d = PVector.dist(this.position, other.position);
+          if (d < this.captureRadius) {
+            other.becomeZombie();
+          }
+        }
+      }
+    }
+  }
+  
+  PVector separateZombies(ArrayList<Agent> agents) {
+    float desiredSeparation = this.r * 4;
+    PVector sum = new PVector(0, 0);
+    PVector steer = new PVector(0, 0);
+    int count = 0;
+    for (Agent other : agents) {
+      if (other.isZombie && other != this) {
+        float d = PVector.dist(this.position, other.position);
+        if (d < desiredSeparation) {
+          PVector diff = PVector.sub(this.position, other.position);
+          diff.setMag(1.0 / d);
+          sum.add(diff);
+          count++;
+        }
+      }
+    }
+    if (count > 0) {
+      sum.setMag(this.maxspeed);
+      steer = PVector.sub(sum, this.velocity);
+      steer.limit(this.maxforce);
+    }
+    return steer;
+  }
+  
+  PVector alignZombies(ArrayList<Agent> agents) {
+    float neighborDistance = 50;
+    PVector sum = new PVector(0, 0);
+    int count = 0;
+    for (Agent other : agents) {
+      if (other.isZombie && other != this) {
+        float d = PVector.dist(this.position, other.position);
+        if (d < neighborDistance) {
+          sum.add(other.velocity);
+          count++;
+        }
+      }
+    }
+    if (count > 0) {
+      sum.setMag(this.maxspeed);
+      PVector steer = PVector.sub(sum, this.velocity);
+      steer.limit(this.maxforce);
+      return steer;
+    } else {
+      return new PVector(0, 0);
+    }
+  }
+  
+  PVector cohesionZombies(ArrayList<Agent> agents) {
+    float neighborDistance = 60;
+    PVector sum = new PVector(0, 0);
+    int count = 0;
+    for (Agent other : agents) {
+      if (other.isZombie && other != this) {
+        float d = PVector.dist(this.position, other.position);
+        if (d < neighborDistance) {
+          sum.add(other.position);
+          count++;
+        }
+      }
+    }
+    if (count > 0) {
+      sum.div(count);
+      return this.seek(sum);
+    } else {
+      return new PVector(0, 0);
+    }
   }
 
 }
