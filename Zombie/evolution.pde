@@ -13,6 +13,8 @@ class Evolution {
   Tree humanEvolutionTree;
   TreeNode currentZombieNode;
   TreeNode currentHumanNode;
+  TreeNode secondZombieParent;
+  TreeNode secondHumanParent;
   float timeRemaining; 
   float maxTime; 
   int startTime; 
@@ -25,7 +27,7 @@ class Evolution {
     this.crossoverRate = 0.3;
     this.bestScore = 0;
     this.evolutionType = 0.5; // Menor a 0.5 favorece mutaciones, mayor a 0.5 cruces
-    this.evolutionRate = 0.4;
+    this.evolutionRate = 0.2;
     this.zombieGenotype = initialZombieGenotype;
     this.humanGenotype = initialHumanGenotype;
     this.maxTime = 20.0;
@@ -79,18 +81,23 @@ class Evolution {
   }
 
   void nextGeneration() {
+    updateTimer();
+    
     float zombieScore = calculateZombieScore();
     float humanScore = calculateHumanScore();
     
+    TreeNode bestZombieNode = null;
+    TreeNode bestHumanNode = null;
+    
     if (evolveZombie && this.zombieEvolutionTree != null) {
-      TreeNode bestZombieNode = this.zombieEvolutionTree.getBestNode();
+      bestZombieNode = this.zombieEvolutionTree.getBestNode();
       if (bestZombieNode != null) {
         this.zombieGenotype = bestZombieNode.genotype.copy();
       }
     }
     
     if (evolveHuman && this.humanEvolutionTree != null) {
-      TreeNode bestHumanNode = this.humanEvolutionTree.getBestNode();
+      bestHumanNode = this.humanEvolutionTree.getBestNode();
       if (bestHumanNode != null) {
         this.humanGenotype = bestHumanNode.genotype.copy();
       }
@@ -98,6 +105,7 @@ class Evolution {
     
     String zombieMutationType = "";
     if (evolveZombie) {
+      this.secondZombieParent = null;
       if (this.crossoverRate > 0 && random(1.0) < this.evolutionType) {
         zombieMutationType = "crossover";
         this.crossoverZombies();
@@ -109,6 +117,7 @@ class Evolution {
     
     String humanMutationType = "";
     if (evolveHuman) {
+      this.secondHumanParent = null;
       if (this.crossoverRate > 0 && random(1.0) < this.evolutionType) {
         humanMutationType = "crossover";
         this.crossoverHumans();
@@ -118,27 +127,51 @@ class Evolution {
       }
     }
     
-    if (evolveZombie && this.zombieEvolutionTree != null && this.agents.size() > 0) {
-      TreeNode newNode = this.zombieEvolutionTree.addNode(
-        this.currentZombieNode,
-        this.generation + 1, 
-        zombieScore, 
-        this.zombieGenotype,
-        zombieMutationType
-      );
+    if (evolveZombie && this.zombieEvolutionTree != null && this.agents.size() > 0 && bestZombieNode != null) {
+      TreeNode newNode = null;
+      if (zombieMutationType.equals("crossover") && this.secondZombieParent != null) {
+        newNode = this.zombieEvolutionTree.addNode(
+          bestZombieNode,
+          this.secondZombieParent,
+          this.generation + 1, 
+          zombieScore, 
+          this.zombieGenotype,
+          zombieMutationType
+        );
+      } else {
+        newNode = this.zombieEvolutionTree.addNode(
+          bestZombieNode,
+          this.generation + 1, 
+          zombieScore, 
+          this.zombieGenotype,
+          zombieMutationType
+        );
+      }
       if (newNode != null) {
         this.currentZombieNode = newNode;
       }
     }
     
-    if (evolveHuman && this.humanEvolutionTree != null && this.agents.size() > 0) {
-      TreeNode newNode = this.humanEvolutionTree.addNode(
-        this.currentHumanNode,
-        this.generation + 1, 
-        humanScore, 
-        this.humanGenotype,
-        humanMutationType
-      );
+    if (evolveHuman && this.humanEvolutionTree != null && this.agents.size() > 0 && bestHumanNode != null) {
+      TreeNode newNode = null;
+      if (humanMutationType.equals("crossover") && this.secondHumanParent != null) {
+        newNode = this.humanEvolutionTree.addNode(
+          bestHumanNode,
+          this.secondHumanParent,
+          this.generation + 1, 
+          humanScore, 
+          this.humanGenotype,
+          humanMutationType
+        );
+      } else {
+        newNode = this.humanEvolutionTree.addNode(
+          bestHumanNode,
+          this.generation + 1, 
+          humanScore, 
+          this.humanGenotype,
+          humanMutationType
+        );
+      }
       if (newNode != null) {
         this.currentHumanNode = newNode;
       }
@@ -161,6 +194,7 @@ class Evolution {
     
     TreeNode parent1 = this.zombieEvolutionTree.getBestNode();
     TreeNode parent2 = this.zombieEvolutionTree.allNodes.get(int(random(this.zombieEvolutionTree.allNodes.size())));
+    this.secondZombieParent = parent2;
     
     Genotype offspring = new Genotype();
     
@@ -199,6 +233,7 @@ class Evolution {
     
     TreeNode parent1 = this.humanEvolutionTree.getBestNode();
     TreeNode parent2 = this.humanEvolutionTree.allNodes.get(int(random(this.humanEvolutionTree.allNodes.size())));
+    this.secondHumanParent = parent2;
     
     Genotype offspring = new Genotype();
     

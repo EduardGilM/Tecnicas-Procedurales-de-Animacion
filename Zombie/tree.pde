@@ -3,6 +3,7 @@ class TreeNode {
   float score;
   Genotype genotype;
   TreeNode parent;
+  TreeNode secondParent;
   ArrayList<TreeNode> children;
   String mutationType; // "root", "mutation", "crossover"
   
@@ -11,6 +12,7 @@ class TreeNode {
     this.score = score;
     this.genotype = genotype.copy();
     this.parent = null;
+    this.secondParent = null;
     this.children = new ArrayList<TreeNode>();
     this.mutationType = "root";
   }
@@ -20,6 +22,7 @@ class TreeNode {
     this.score = score;
     this.genotype = genotype.copy();
     this.parent = null;
+    this.secondParent = null;
     this.children = new ArrayList<TreeNode>();
     this.mutationType = mutationType;
   }
@@ -43,6 +46,14 @@ class Tree {
   TreeNode addNode(TreeNode parent, int generation, float score, Genotype genotype, String mutationType) {
     TreeNode newNode = new TreeNode(generation, score, genotype, mutationType);
     parent.addChild(newNode);
+    this.allNodes.add(newNode);
+    return newNode;
+  }
+  
+  TreeNode addNode(TreeNode parent, TreeNode secondParent, int generation, float score, Genotype genotype, String mutationType) {
+    TreeNode newNode = new TreeNode(generation, score, genotype, mutationType);
+    parent.addChild(newNode);
+    newNode.secondParent = secondParent;
     this.allNodes.add(newNode);
     return newNode;
   }
@@ -103,6 +114,18 @@ class Tree {
       }
     }
     
+    stroke(150, 100, 200, 150);
+    strokeWeight(1);
+    for (TreeNode node : this.allNodes) {
+      if (node.secondParent != null) {
+        PVector nodePos = positions.get(node);
+        PVector secondParentPos = positions.get(node.secondParent);
+        if (nodePos != null && secondParentPos != null) {
+          line(secondParentPos.x, secondParentPos.y, nodePos.x, nodePos.y);
+        }
+      }
+    }
+    
     for (TreeNode node : this.allNodes) {
       PVector pos = positions.get(node);
       if (pos != null) {
@@ -113,36 +136,46 @@ class Tree {
   
 private HashMap<TreeNode, PVector> calculatePositions(float startX, float startY, float nodeSize, float availableWidth) {
     HashMap<TreeNode, PVector> positions = new HashMap<TreeNode, PVector>();
-    int maxDepth = getMaxDepth();
     
-    if (maxDepth == 0) {
-        positions.put(this.root, new PVector(startX, startY));
-        return positions;
-    }
+    positions.put(this.root, new PVector(startX, startY));
     
-    float verticalSpacing = max((height - startY - 100) / (maxDepth + 1), nodeSize * 2);
-    
-    for (int gen = 0; gen <= maxDepth; gen++) {
-        ArrayList<TreeNode> nodesAtGen = getNodesAtGeneration(gen);
-        float y = startY + gen * verticalSpacing;
-        
-        if (nodesAtGen.size() > 0) {
-            // Usar el ancho disponible en lugar del width global
-            float margin = 50;
-            float usableWidth = availableWidth - (2 * margin);
-            float horizontalSpacing = max(usableWidth / (nodesAtGen.size() + 1), nodeSize * 2);
-            
-            for (int i = 0; i < nodesAtGen.size(); i++) {
-                // Centrar los nodos alrededor de startX
-                float totalWidth = horizontalSpacing * (nodesAtGen.size() - 1);
-                float firstX = startX - totalWidth / 2;
-                float x = firstX + i * horizontalSpacing;
-                positions.put(nodesAtGen.get(i), new PVector(x, y));
-            }
-        }
-    }
+    HashMap<Integer, Integer> depthCounter = new HashMap<Integer, Integer>();
+    assignDepthsAndPositions(this.root, 0, positions, startX, startY, nodeSize, availableWidth, depthCounter);
     
     return positions;
+}
+
+private void assignDepthsAndPositions(TreeNode node, int depth, HashMap<TreeNode, PVector> positions, 
+                                       float startX, float startY, float nodeSize, float availableWidth,
+                                       HashMap<Integer, Integer> depthCounter) {
+    if (node == null) return;
+    
+    int maxDepth = getMaxDepth();
+    float verticalSpacing = max((height - startY - 100) / (maxDepth + 1), nodeSize * 2);
+    
+    if (node.children.isEmpty()) return;
+    
+    float y = startY + (depth + 1) * verticalSpacing;
+    PVector parentPos = positions.get(node);
+    
+    if (parentPos != null) {
+        int siblingCount = node.children.size();
+        
+        for (int i = 0; i < siblingCount; i++) {
+            TreeNode child = node.children.get(i);
+            
+            if (siblingCount > 1) {
+                float spreadWidth = min(200, availableWidth * 0.3);
+                float offsetPerChild = spreadWidth / (siblingCount - 1);
+                float offset = (i - (siblingCount - 1) / 2.0) * offsetPerChild;
+                positions.put(child, new PVector(parentPos.x + offset, y));
+            } else {
+                positions.put(child, new PVector(parentPos.x, y));
+            }
+            
+            assignDepthsAndPositions(child, depth + 1, positions, startX, startY, nodeSize, availableWidth, depthCounter);
+        }
+    }
 }
   
   private void drawNode(TreeNode node, float x, float y, float size) {
@@ -230,9 +263,15 @@ private HashMap<TreeNode, PVector> calculatePositions(float startX, float startY
   // Obtener el mejor score de cada generación
   ArrayList<Float> getBestScoresByGeneration() {
     ArrayList<Float> bestScores = new ArrayList<Float>();
-    int maxGen = getMaxDepth();
     
-    for (int gen = 0; gen <= maxGen; gen++) {
+    int maxGeneration = 0;
+    for (TreeNode node : this.allNodes) {
+      if (node.generation > maxGeneration) {
+        maxGeneration = node.generation;
+      }
+    }
+    
+    for (int gen = 0; gen <= maxGeneration; gen++) {
       ArrayList<TreeNode> nodesAtGen = getNodesAtGeneration(gen);
       if (nodesAtGen.size() > 0) {
         float bestScore = nodesAtGen.get(0).score;

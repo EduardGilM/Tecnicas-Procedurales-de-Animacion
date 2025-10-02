@@ -1,14 +1,14 @@
 int TRIANGLE_COUNT = 12;
 float TRIANGLE_SIZE = 6;
-int TRAINING_STEPS = 50;
+int TRAINING_STEPS = 200;
 boolean evolveZombie = true; 
 boolean evolveHuman = false; 
 
 // Configuración física de agentes
-float ZOMBIE_BASE_SPEED = 7.0;   // Velocidad base de zombies
-float ZOMBIE_BASE_FORCE = 0.18;  // Fuerza base de zombies
-float HUMAN_BASE_SPEED = 9.0;    // Velocidad base de humanos (más rápidos)
-float HUMAN_BASE_FORCE = 0.22;   // Fuerza base de humanos
+float ZOMBIE_BASE_SPEED = 8.0;   // Velocidad base de zombies
+float ZOMBIE_BASE_FORCE = 0.2;  // Fuerza base de zombies
+float HUMAN_BASE_SPEED = 7.0;    // Velocidad base de humanos (más rápidos)
+float HUMAN_BASE_FORCE = 0.12;   // Fuerza base de humanos
 
 ArrayList<Agent> agents = new ArrayList<Agent>();
 ArrayList<Path> paths = new ArrayList<Path>();
