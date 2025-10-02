@@ -52,11 +52,7 @@ class Agent {
   }
 
   PVector flee(PVector target) {
-    PVector desired = PVector.sub(this.position, target);
-    desired.setMag(this.maxspeed);
-    PVector steer = PVector.sub(desired, this.velocity);
-    steer.limit(this.maxforce);
-    return steer;
+    return this.seek(target).mult(-1);
   }
 
   PVector arrive(PVector target) {
