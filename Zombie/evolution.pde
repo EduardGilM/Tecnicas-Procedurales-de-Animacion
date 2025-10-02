@@ -17,9 +17,10 @@ class Evolution {
   TreeNode secondHumanParent;
   float timeRemaining; 
   float maxTime; 
-  int startTime; 
+  int startTime;
+  boolean countAgents; 
 
-  Evolution(ArrayList<Agent> agents, Genotype initialZombieGenotype, Genotype initialHumanGenotype) {
+  Evolution(ArrayList<Agent> agents, Genotype initialZombieGenotype, Genotype initialHumanGenotype, boolean countAgents) {
     this.agents = agents;
     this.generation = 0;
     this.reward = 0;
@@ -33,6 +34,7 @@ class Evolution {
     this.maxTime = 20.0;
     this.timeRemaining = this.maxTime;
     this.startTime = millis();
+    this.countAgents = countAgents;
     
     if (agents.size() > 0) {
       this.zombieEvolutionTree = new Tree(0, this.zombieGenotype);
@@ -182,11 +184,35 @@ class Evolution {
   }
   
   float calculateZombieScore() {
-    return this.timeRemaining;
+    float score = this.timeRemaining;
+    
+    if (this.countAgents) {
+      int zombieCount = 0;
+      for (Agent a : this.agents) {
+        if (a != null && a.isZombie) {
+          zombieCount++;
+        }
+      }
+      score += zombieCount;
+    }
+    
+    return score;
   }
   
   float calculateHumanScore() {
-    return this.maxTime - this.timeRemaining;
+    float score = this.maxTime - this.timeRemaining;
+    
+    if (this.countAgents) {
+      int humanCount = 0;
+      for (Agent a : this.agents) {
+        if (a != null && !a.isZombie) {
+          humanCount++;
+        }
+      }
+      score -= (TRIANGLE_COUNT - humanCount - 1);
+    }
+    
+    return score;
   }
 
   void crossoverZombies() {

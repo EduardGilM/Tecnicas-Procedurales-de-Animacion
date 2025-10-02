@@ -2,7 +2,8 @@ int TRIANGLE_COUNT = 12;
 float TRIANGLE_SIZE = 6;
 int TRAINING_STEPS = 200;
 boolean evolveZombie = true; 
-boolean evolveHuman = false; 
+boolean evolveHuman = false;
+boolean countAgents = true; // Si es true, suma la cantidad de agentes del grupo al score 
 
 // Configuración física de agentes
 float ZOMBIE_BASE_SPEED = 8.0;   // Velocidad base de zombies
@@ -19,6 +20,11 @@ Evolution evolution;
 boolean trainingMode = false;
 boolean showTreeMode = false;
 int trainingStepsCompleted = 0;
+
+// Promedio móvil para la gráfica
+int[] movingAverageOptions = {1, 5, 10, 20, 50};
+int movingAverageIndex = 0;
+int movingAverageWindow = 1;
 
 // Áreas de la pantalla
 int simulationWidth;
@@ -109,7 +115,7 @@ void setup() {
     agents.get(i).genotype = humanGenotype.copy();
   }
   
-  evolution = new Evolution(agents, zombieGenotype, humanGenotype);
+  evolution = new Evolution(agents, zombieGenotype, humanGenotype, countAgents);
 }
 
 void keyPressed() {
@@ -179,6 +185,24 @@ void keyPressed() {
     }
   }
   
+  if (keyCode == UP) {
+    movingAverageIndex++;
+    if (movingAverageIndex >= movingAverageOptions.length) {
+      movingAverageIndex = movingAverageOptions.length - 1;
+    }
+    movingAverageWindow = movingAverageOptions[movingAverageIndex];
+    println("Promedio móvil: " + movingAverageWindow);
+  }
+  
+  if (keyCode == DOWN) {
+    movingAverageIndex--;
+    if (movingAverageIndex < 0) {
+      movingAverageIndex = 0;
+    }
+    movingAverageWindow = movingAverageOptions[movingAverageIndex];
+    println("Promedio móvil: " + movingAverageWindow);
+  }
+  
   if (key == 'r' || key == 'R') {
     agents.clear();
     
@@ -206,7 +230,7 @@ void keyPressed() {
       agents.get(i).genotype = humanGenotype.copy();
     }
     
-    evolution = new Evolution(agents, zombieGenotype, humanGenotype);
+    evolution = new Evolution(agents, zombieGenotype, humanGenotype, countAgents);
     trainingMode = false;
     showTreeMode = false;
     trainingStepsCompleted = 0;
@@ -714,6 +738,7 @@ void drawEvolutionGraph() {
   
   if (evolveZombie && evolution.zombieEvolutionTree != null) {
     zombieScores = evolution.zombieEvolutionTree.getBestScoresByGeneration();
+    zombieScores = applyMovingAverage(zombieScores, movingAverageWindow);
     maxGenerations = max(maxGenerations, zombieScores.size());
     for (float score : zombieScores) {
       maxScore = max(maxScore, score);
@@ -723,6 +748,7 @@ void drawEvolutionGraph() {
   
   if (evolveHuman && evolution.humanEvolutionTree != null) {
     humanScores = evolution.humanEvolutionTree.getBestScoresByGeneration();
+    humanScores = applyMovingAverage(humanScores, movingAverageWindow);
     maxGenerations = max(maxGenerations, humanScores.size());
     for (float score : humanScores) {
       maxScore = max(maxScore, score);
@@ -748,7 +774,11 @@ void drawEvolutionGraph() {
   fill(255, 255, 0);
   textSize(14);
   textAlign(CENTER);
-  text("Evolución del Mejor Score por Generación", graphX + graphWidth/2, graphY + 15);
+  String title = "Evolución del Mejor Score por Generación";
+  if (movingAverageWindow > 1) {
+    title += " (Promedio: " + movingAverageWindow + ")";
+  }
+  text(title, graphX + graphWidth/2, graphY + 15);
   
   // Etiquetas del eje Y
   fill(200, 220, 255);
@@ -861,6 +891,32 @@ void drawEvolutionGraph() {
     textSize(11);
     text("Humanos", legendX + 10, legendY);
   }
+}
+
+ArrayList<Float> applyMovingAverage(ArrayList<Float> data, int windowSize) {
+  if (data == null || data.size() == 0 || windowSize <= 1) {
+    return data;
+  }
+  
+  ArrayList<Float> smoothed = new ArrayList<Float>();
+  
+  for (int i = 0; i < data.size(); i++) {
+    float sum = 0;
+    int count = 0;
+    
+    int halfWindow = windowSize / 2;
+    int start = max(0, i - halfWindow);
+    int end = min(data.size() - 1, i + halfWindow);
+    
+    for (int j = start; j <= end; j++) {
+      sum += data.get(j);
+      count++;
+    }
+    
+    smoothed.add(sum / count);
+  }
+  
+  return smoothed;
 }
 
 // Función helper para dibujar un valor de genotipo con su delta
