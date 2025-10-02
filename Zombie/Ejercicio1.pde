@@ -22,7 +22,7 @@ boolean showTreeMode = false;
 int trainingStepsCompleted = 0;
 
 // Promedio móvil para la gráfica
-int[] movingAverageOptions = {1, 5, 10, 20, 50};
+int[] movingAverageOptions = {1, 5, 10, 20, 50, 100};
 int movingAverageIndex = 0;
 int movingAverageWindow = 1;
 
