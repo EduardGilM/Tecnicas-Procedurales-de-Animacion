@@ -10,6 +10,8 @@ class Genotype {
     float separationMultiplier;
     float alignmentMultiplier;
     float cohesionMultiplier;
+    float speedMultiplier;  // Multiplicador de velocidad máxima
+    float forceMultiplier;  // Multiplicador de fuerza máxima
 
     Genotype() {
         this.seekMultiplier = random(0.5, 6);
@@ -23,6 +25,8 @@ class Genotype {
         this.separationMultiplier = random(0.5, 6);
         this.alignmentMultiplier = random(0.5, 6);
         this.cohesionMultiplier = random(0.5, 6);
+        this.speedMultiplier = random(0.7, 1.5);  // Varía la velocidad entre 70% y 150%
+        this.forceMultiplier = random(0.7, 1.5);  // Varía la fuerza entre 70% y 150%
     }
     
     Genotype copy() {
@@ -38,6 +42,8 @@ class Genotype {
         newGenotype.separationMultiplier = this.separationMultiplier;
         newGenotype.alignmentMultiplier = this.alignmentMultiplier;
         newGenotype.cohesionMultiplier = this.cohesionMultiplier;
+        newGenotype.speedMultiplier = this.speedMultiplier;
+        newGenotype.forceMultiplier = this.forceMultiplier;
         return newGenotype;
     }
 }

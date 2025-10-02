@@ -93,21 +93,15 @@ class Tree {
     strokeWeight(1);
     for (TreeNode node : this.allNodes) {
       PVector nodePos = positions.get(node);
-      if (nodePos != null) {
-        for (TreeNode child : node.children) {
-          PVector childPos = positions.get(child);
-          if (childPos != null) {
-            line(nodePos.x, nodePos.y, childPos.x, childPos.y);
-          }
-        }
+      for (TreeNode child : node.children) {
+        PVector childPos = positions.get(child);
+
       }
     }
     
     for (TreeNode node : this.allNodes) {
       PVector pos = positions.get(node);
-      if (pos != null) {
-        drawNode(node, pos.x, pos.y, nodeSize);
-      }
+      drawNode(node, pos.x, pos.y, nodeSize);
     }
   }
   

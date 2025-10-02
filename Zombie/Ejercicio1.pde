@@ -3,6 +3,13 @@ float TRIANGLE_SIZE = 6;
 int TRAINING_STEPS = 50;
 boolean evolveZombie = true; 
 boolean evolveHuman = false; 
+
+// Configuración física de agentes
+float ZOMBIE_BASE_SPEED = 7.0;   // Velocidad base de zombies
+float ZOMBIE_BASE_FORCE = 0.18;  // Fuerza base de zombies
+float HUMAN_BASE_SPEED = 9.0;    // Velocidad base de humanos (más rápidos)
+float HUMAN_BASE_FORCE = 0.22;   // Fuerza base de humanos
+
 ArrayList<Agent> agents = new ArrayList<Agent>();
 ArrayList<Path> paths = new ArrayList<Path>();
 int currentPathIndex = 0;
@@ -17,6 +24,7 @@ int trainingStepsCompleted = 0;
 int simulationWidth;
 int treeWidth = 450;
 int dividerX;
+float simulationBottomLimit; // Límite inferior para que los agentes no entren en la gráfica
 
 void setup() {
   fullScreen();
@@ -25,6 +33,7 @@ void setup() {
   // Calcular áreas
   simulationWidth = width - treeWidth;
   dividerX = simulationWidth;
+  simulationBottomLimit = height; // Se actualizará cuando haya gráfica
   
   for (int i = 0; i < TRIANGLE_COUNT; i++) {
     float x = random(50, simulationWidth-50);
@@ -33,6 +42,17 @@ void setup() {
     float angle = random(TWO_PI);
     float speed = random(2, 5);
     agent.velocity = new PVector(cos(angle) * speed, sin(angle) * speed);
+    
+    // Configurar valores base según el tipo
+    if (i == 0) {
+      agent.baseMaxSpeed = ZOMBIE_BASE_SPEED;
+      agent.baseMaxForce = ZOMBIE_BASE_FORCE;
+    } else {
+      agent.baseMaxSpeed = HUMAN_BASE_SPEED;
+      agent.baseMaxForce = HUMAN_BASE_FORCE;
+    }
+    agent.updatePhysicalAttributes();
+    
     agents.add(agent);
   }
   
@@ -76,9 +96,9 @@ void setup() {
   path4.addPoint(simW * 0.1875, simH * 0.25);
   paths.add(path4);
   
-  obstacles.add(new Obstacle(simW * 0.375, simH * 0.333, 35, 0));
-  obstacles.add(new Obstacle(simW * 0.625, simH * 0.583, 40, 1));
-  obstacles.add(new Obstacle(simW * 0.25, simH * 0.75, 38, 2));
+  obstacles.add(new Obstacle(simW * 0.375, simH * 0.333, 35, 0)); // Círculo
+  obstacles.add(new Obstacle(simW * 0.625, simH * 0.583, 40, 1)); // Cuadrado
+  // Obstáculo triangular y hexagonal eliminados
   
   Genotype zombieGenotype = new Genotype();
   Genotype humanGenotype = new Genotype();
@@ -204,6 +224,16 @@ void keyPressed() {
 void draw() {
   background(20, 20, 40);
   
+  // Actualizar el límite inferior para los agentes ANTES de que se muevan
+  if (trainingMode || showTreeMode) {
+    // Calcular el límite basado en las dimensiones de la gráfica
+    float graphHeight = 300;
+    float graphY = height - graphHeight - 30;
+    simulationBottomLimit = graphY - 20;
+  } else {
+    simulationBottomLimit = height; // Sin gráfica, usar toda la pantalla
+  }
+  
   // Dibujar divisor si estamos en modo entrenamiento
   if (trainingMode || showTreeMode) {
     stroke(100, 100, 150);
@@ -212,7 +242,6 @@ void draw() {
   }
   
   if (showTreeMode) {
-    // Mostrar mensaje en el área de simulación
     fill(255, 255, 0);
     textSize(24);
     textAlign(CENTER);
@@ -220,7 +249,6 @@ void draw() {
     textSize(16);
     text("Mira el árbol de evolución a la derecha", simulationWidth/2, height/2 + 20);
     
-    // Mostrar árbol en el lado derecho
     drawTreePanel();
     return;
   }
@@ -230,7 +258,15 @@ void draw() {
     
     if (evolution.isTimeUp()) {
       trainingStepsCompleted++;
-      println("Generación " + trainingStepsCompleted + "/" + TRAINING_STEPS + " completada. Score: " + evolution.calculateGenerationScore());
+      String scoreInfo = "";
+      if (evolveZombie && evolveHuman) {
+        scoreInfo = "Zombie Score: " + evolution.calculateZombieScore() + ", Human Score: " + evolution.calculateHumanScore();
+      } else if (evolveZombie) {
+        scoreInfo = "Zombie Score: " + evolution.calculateZombieScore();
+      } else if (evolveHuman) {
+        scoreInfo = "Human Score: " + evolution.calculateHumanScore();
+      }
+      println("Generación " + trainingStepsCompleted + "/" + TRAINING_STEPS + " completada. " + scoreInfo);
       
       if (trainingStepsCompleted >= TRAINING_STEPS) {
         trainingMode = false;
@@ -261,19 +297,6 @@ void draw() {
     drawTreePanel();
   } else {
     evolution.updateTimer();
-  }
-  
-  // Dibujar borde del área de simulación
-  stroke(60, 60, 100); 
-  strokeWeight(2);
-  noFill();
-  int offset = 20;
-  if (trainingMode || showTreeMode) {
-    // Solo el área de simulación
-    rect(offset, offset, simulationWidth - 2 * offset, height - 2 * offset);
-  } else {
-    // Toda la pantalla cuando no hay entrenamiento
-    rect(offset, offset, width - 2 * offset, height - 2 * offset);
   }
   
   if (showPath) {
@@ -312,7 +335,7 @@ void draw() {
       force.add(a.arrive(mouse).mult(a.genotype.arriveMultiplier));
     }
     if (a.behaviors.get("wallAvoidance")) {
-      force.add(a.wallAvoidance().mult(6));
+      force.add(a.wallAvoidance().mult(15)); // Aumentado de 6 a 15 para mayor fuerza
     }
     if (a.behaviors.get("separation") && !a.isZombie) {
       force.add(a.separate(agents).mult(a.genotype.separationMultiplier));
@@ -334,13 +357,34 @@ void draw() {
     }
     a.applyForce(force);
   }
+  
+  // Dibujar gráfica de evolución en la parte inferior (solo en modo entrenamiento o árbol)
+  if (trainingMode || showTreeMode) {
+    drawEvolutionGraph();
+  }
+  
+  // Dibujar borde del área de simulación DESPUÉS de la gráfica para que quede encima
+  stroke(60, 60, 100); 
+  strokeWeight(2);
+  noFill();
+  int offset = 20;
+  if (trainingMode || showTreeMode) {
+    // Solo el área de simulación, usando simulationBottomLimit para delimitar sobre la gráfica
+    float rectHeight = simulationBottomLimit - 2 * offset;
+    rect(offset, offset, simulationWidth - 2 * offset, rectHeight);
+  } else {
+    // Toda la pantalla cuando no hay entrenamiento
+    rect(offset, offset, width - 2 * offset, height - 2 * offset);
+  }
 }
 
 void resetAgentsWithGenotypes(Genotype zombieGenotype, Genotype humanGenotype) {
   agents.clear();
   for (int i = 0; i < TRIANGLE_COUNT; i++) {
     float x = random(50, simulationWidth-50);
-    float y = random(50, height-50);
+    // Limitar la posición Y para evitar que aparezcan en el área de la gráfica
+    float maxY = (trainingMode || showTreeMode) ? simulationBottomLimit - 50 : height - 50;
+    float y = random(50, maxY);
     Agent agent = new Agent(#FF0000, new PVector(x, y));
     float angle = random(TWO_PI);
     float speed = random(2, 5);
@@ -349,9 +393,15 @@ void resetAgentsWithGenotypes(Genotype zombieGenotype, Genotype humanGenotype) {
     // El primer agente es zombie con su genotipo
     if (i == 0) {
       agent.genotype = zombieGenotype.copy();
+      agent.baseMaxSpeed = ZOMBIE_BASE_SPEED;
+      agent.baseMaxForce = ZOMBIE_BASE_FORCE;
+      agent.updatePhysicalAttributes();
     } else {
       // Los demás son humanos con su genotipo
       agent.genotype = humanGenotype.copy();
+      agent.baseMaxSpeed = HUMAN_BASE_SPEED;
+      agent.baseMaxForce = HUMAN_BASE_FORCE;
+      agent.updatePhysicalAttributes();
     }
     
     agents.add(agent);
@@ -494,7 +544,7 @@ void drawTreePanel() {
     pushMatrix();
     // El árbol usa coordenadas absolutas, así que necesitamos compensar
     translate(-dividerX, 0);
-    evolution.zombieEvolutionTree.display(dividerX + treeX, treeY, 18);
+    evolution.zombieEvolutionTree.display(dividerX + treeX, treeY, 18, treeWidth);
     popMatrix();
     
     // Información del árbol en la parte inferior del panel
@@ -515,12 +565,46 @@ void drawTreePanel() {
     
     TreeNode best = evolution.zombieEvolutionTree.getBestNode();
     fill(100, 255, 100);
-    text("Mejor Score: " + nf(best.score, 0, 2), 15, height - 120);
+    text("Mejor Score: " + nf(best.score, 0, 2) + " seg", 15, height - 120);
     text("En generación: " + best.generation, 15, height - 100);
     
+    fill(150, 150, 200);
+    textSize(9);
+    text("(Score = tiempo restante al ganar)", 15, height - 85);
+    textSize(11);
+    
     fill(200, 220, 255);
-    text("Score Promedio: " + nf(evolution.zombieEvolutionTree.getAverageScore(), 0, 2), 15, height - 80);
-    text("Score Mínimo: " + nf(evolution.zombieEvolutionTree.getMinScore(), 0, 2), 15, height - 60);
+    text("Score Promedio: " + nf(evolution.zombieEvolutionTree.getAverageScore(), 0, 2), 15, height - 70);
+    text("Score Mínimo: " + nf(evolution.zombieEvolutionTree.getMinScore(), 0, 2), 15, height - 50);
+    
+    // Mostrar valores del genotipo del NODO ACTUAL (última generación)
+    float rightColX = treeWidth / 2 + 20;
+    textAlign(LEFT);
+    textSize(10);
+    fill(255, 200, 100);
+    
+    if (evolution.currentZombieNode != null) {
+      text("Genotipo Actual (Gen " + evolution.currentZombieNode.generation + "):", rightColX, height - 160);
+      
+      // Obtener genotipo del padre si existe
+      TreeNode current = evolution.currentZombieNode;
+      Genotype parentGenotype = (current.parent != null) ? current.parent.genotype : null;
+      
+      textSize(9);
+      int yPos = height - 145;
+      int lineSpacing = 12;
+      
+      drawGenotypeValue("Speed", current.genotype.speedMultiplier, parentGenotype != null ? parentGenotype.speedMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Force", current.genotype.forceMultiplier, parentGenotype != null ? parentGenotype.forceMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Pursue", current.genotype.pursueMultiplier, parentGenotype != null ? parentGenotype.pursueMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Evade", current.genotype.evadeMultiplier, parentGenotype != null ? parentGenotype.evadeMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Separ.", current.genotype.separationMultiplier, parentGenotype != null ? parentGenotype.separationMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Align.", current.genotype.alignmentMultiplier, parentGenotype != null ? parentGenotype.alignmentMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Cohes.", current.genotype.cohesionMultiplier, parentGenotype != null ? parentGenotype.cohesionMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Wander", current.genotype.wanderMultiplier, parentGenotype != null ? parentGenotype.wanderMultiplier : 0, parentGenotype != null, rightColX, yPos);
+    } else {
+      text("Genotipo no disponible", rightColX, height - 160);
+    }
   }
   else if (evolveHuman && evolution.humanEvolutionTree != null) {
     fill(255, 100, 100);
@@ -535,7 +619,7 @@ void drawTreePanel() {
     // Dibujar el árbol dentro del panel
     pushMatrix();
     translate(-dividerX, 0);
-    evolution.humanEvolutionTree.display(dividerX + treeX, treeY, 18);
+    evolution.humanEvolutionTree.display(dividerX + treeX, treeY, 18, treeWidth);
     popMatrix();
     
     // Información del árbol en la parte inferior del panel
@@ -556,13 +640,249 @@ void drawTreePanel() {
     
     TreeNode best = evolution.humanEvolutionTree.getBestNode();
     fill(255, 100, 100);
-    text("Mejor Score: " + nf(best.score, 0, 2), 15, height - 120);
+    text("Mejor Score: " + nf(best.score, 0, 2) + " seg", 15, height - 120);
     text("En generación: " + best.generation, 15, height - 100);
     
+    fill(150, 150, 200);
+    textSize(9);
+    text("(Score = tiempo sobrevivido)", 15, height - 85);
+    textSize(11);
+    
     fill(200, 220, 255);
-    text("Score Promedio: " + nf(evolution.humanEvolutionTree.getAverageScore(), 0, 2), 15, height - 80);
-    text("Score Mínimo: " + nf(evolution.humanEvolutionTree.getMinScore(), 0, 2), 15, height - 60);
+    text("Score Promedio: " + nf(evolution.humanEvolutionTree.getAverageScore(), 0, 2), 15, height - 70);
+    text("Score Mínimo: " + nf(evolution.humanEvolutionTree.getMinScore(), 0, 2), 15, height - 50);
+    
+    // Mostrar valores del genotipo del NODO ACTUAL (última generación)
+    float rightColX = treeWidth / 2 + 20;
+    textAlign(LEFT);
+    textSize(10);
+    fill(255, 200, 100);
+    
+    if (evolution.currentHumanNode != null) {
+      text("Genotipo Actual (Gen " + evolution.currentHumanNode.generation + "):", rightColX, height - 160);
+      
+      // Obtener genotipo del padre si existe
+      TreeNode current = evolution.currentHumanNode;
+      Genotype parentGenotype = (current.parent != null) ? current.parent.genotype : null;
+      
+      textSize(9);
+      int yPos = height - 145;
+      int lineSpacing = 12;
+      
+      drawGenotypeValue("Speed", current.genotype.speedMultiplier, parentGenotype != null ? parentGenotype.speedMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Force", current.genotype.forceMultiplier, parentGenotype != null ? parentGenotype.forceMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Pursue", current.genotype.pursueMultiplier, parentGenotype != null ? parentGenotype.pursueMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Evade", current.genotype.evadeMultiplier, parentGenotype != null ? parentGenotype.evadeMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Separ.", current.genotype.separationMultiplier, parentGenotype != null ? parentGenotype.separationMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Align.", current.genotype.alignmentMultiplier, parentGenotype != null ? parentGenotype.alignmentMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Cohes.", current.genotype.cohesionMultiplier, parentGenotype != null ? parentGenotype.cohesionMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Wander", current.genotype.wanderMultiplier, parentGenotype != null ? parentGenotype.wanderMultiplier : 0, parentGenotype != null, rightColX, yPos);
+    } else {
+      text("Genotipo no disponible", rightColX, height - 160);
+    }
   }
   
   popMatrix();
+}
+
+void drawEvolutionGraph() {
+  // Dimensiones y posición de la gráfica
+  float graphHeight = 300; // Aumentado de 200 a 300 para reducir el área de movimiento
+  float graphWidth = simulationWidth - 100;
+  float graphX = 50;
+  float graphY = height - graphHeight - 30;
+  float padding = 40;
+  
+  // Fondo de la gráfica
+  fill(30, 30, 50, 230);
+  stroke(100, 100, 150);
+  strokeWeight(2);
+  rect(graphX, graphY, graphWidth, graphHeight);
+  
+  // Área de dibujo de la gráfica (con padding)
+  float plotX = graphX + padding;
+  float plotY = graphY + padding;
+  float plotWidth = graphWidth - 2 * padding;
+  float plotHeight = graphHeight - 2 * padding;
+  
+  // Obtener datos
+  ArrayList<Float> zombieScores = null;
+  ArrayList<Float> humanScores = null;
+  int maxGenerations = 0;
+  float maxScore = 0;
+  float minScore = Float.MAX_VALUE;
+  
+  if (evolveZombie && evolution.zombieEvolutionTree != null) {
+    zombieScores = evolution.zombieEvolutionTree.getBestScoresByGeneration();
+    maxGenerations = max(maxGenerations, zombieScores.size());
+    for (float score : zombieScores) {
+      maxScore = max(maxScore, score);
+      minScore = min(minScore, score);
+    }
+  }
+  
+  if (evolveHuman && evolution.humanEvolutionTree != null) {
+    humanScores = evolution.humanEvolutionTree.getBestScoresByGeneration();
+    maxGenerations = max(maxGenerations, humanScores.size());
+    for (float score : humanScores) {
+      maxScore = max(maxScore, score);
+      minScore = min(minScore, score);
+    }
+  }
+  
+  if (maxGenerations == 0) return;
+  
+  // Agregar un pequeño margen a los valores
+  float scoreRange = maxScore - minScore;
+  if (scoreRange < 0.1) scoreRange = 1.0;
+  minScore -= scoreRange * 0.1;
+  maxScore += scoreRange * 0.1;
+  
+  // Dibujar ejes
+  stroke(150, 150, 180);
+  strokeWeight(2);
+  line(plotX, plotY, plotX, plotY + plotHeight); // Eje Y
+  line(plotX, plotY + plotHeight, plotX + plotWidth, plotY + plotHeight); // Eje X
+  
+  // Título
+  fill(255, 255, 0);
+  textSize(14);
+  textAlign(CENTER);
+  text("Evolución del Mejor Score por Generación", graphX + graphWidth/2, graphY + 15);
+  
+  // Etiquetas del eje Y
+  fill(200, 220, 255);
+  textSize(10);
+  textAlign(RIGHT, CENTER);
+  for (int i = 0; i <= 4; i++) {
+    float y = plotY + plotHeight - (i * plotHeight / 4);
+    float value = minScore + (maxScore - minScore) * i / 4;
+    text(nf(value, 0, 1), plotX - 5, y);
+    
+    // Líneas de guía
+    stroke(80, 80, 100, 100);
+    strokeWeight(1);
+    line(plotX, y, plotX + plotWidth, y);
+  }
+  
+  // Etiquetas del eje X
+  textAlign(CENTER, TOP);
+  int step = max(1, maxGenerations / 10);
+  for (int i = 0; i <= maxGenerations; i += step) {
+    float x = maxGenerations > 1 ? plotX + (i * plotWidth / (maxGenerations - 1)) : plotX;
+    text(i, x, plotY + plotHeight + 5);
+  }
+  
+  // Etiqueta del eje X
+  textSize(11);
+  text("Generación", graphX + graphWidth/2, graphY + graphHeight - 5);
+  
+  // Etiqueta del eje Y
+  pushMatrix();
+  translate(graphX + 10, graphY + graphHeight/2);
+  rotate(-HALF_PI);
+  text("Score Máximo", 0, 0);
+  popMatrix();
+  
+  // Dibujar líneas de evolución
+  strokeWeight(3);
+  noFill();
+  
+  // Línea de zombies (verde)
+  if (zombieScores != null && zombieScores.size() > 0) {
+    stroke(100, 255, 100);
+    if (zombieScores.size() > 1) {
+      beginShape();
+      for (int i = 0; i < zombieScores.size(); i++) {
+        float x = plotX + (i * plotWidth / (maxGenerations - 1));
+        float normalizedScore = map(zombieScores.get(i), minScore, maxScore, 0, 1);
+        float y = plotY + plotHeight - (normalizedScore * plotHeight);
+        vertex(x, y);
+      }
+      endShape();
+    }
+    
+    // Puntos
+    fill(100, 255, 100);
+    noStroke();
+    for (int i = 0; i < zombieScores.size(); i++) {
+      float x = zombieScores.size() > 1 ? plotX + (i * plotWidth / (maxGenerations - 1)) : plotX;
+      float normalizedScore = map(zombieScores.get(i), minScore, maxScore, 0, 1);
+      float y = plotY + plotHeight - (normalizedScore * plotHeight);
+      ellipse(x, y, 6, 6);
+    }
+  }
+  
+  // Línea de humanos (rojo)
+  if (humanScores != null && humanScores.size() > 0) {
+    stroke(255, 100, 100);
+    noFill();
+    if (humanScores.size() > 1) {
+      beginShape();
+      for (int i = 0; i < humanScores.size(); i++) {
+        float x = plotX + (i * plotWidth / (maxGenerations - 1));
+        float normalizedScore = map(humanScores.get(i), minScore, maxScore, 0, 1);
+        float y = plotY + plotHeight - (normalizedScore * plotHeight);
+        vertex(x, y);
+      }
+      endShape();
+    }
+    
+    // Puntos
+    fill(255, 100, 100);
+    noStroke();
+    for (int i = 0; i < humanScores.size(); i++) {
+      float x = humanScores.size() > 1 ? plotX + (i * plotWidth / (maxGenerations - 1)) : plotX;
+      float normalizedScore = map(humanScores.get(i), minScore, maxScore, 0, 1);
+      float y = plotY + plotHeight - (normalizedScore * plotHeight);
+      ellipse(x, y, 6, 6);
+    }
+  }
+  
+  // Leyenda
+  float legendX = plotX + plotWidth - 120;
+  float legendY = plotY + 10;
+  
+  if (zombieScores != null) {
+    fill(100, 255, 100);
+    ellipse(legendX, legendY, 10, 10);
+    fill(200, 220, 255);
+    textAlign(LEFT, CENTER);
+    textSize(11);
+    text("Zombies", legendX + 10, legendY);
+    legendY += 20;
+  }
+  
+  if (humanScores != null) {
+    fill(255, 100, 100);
+    ellipse(legendX, legendY, 10, 10);
+    fill(200, 220, 255);
+    textAlign(LEFT, CENTER);
+    textSize(11);
+    text("Humanos", legendX + 10, legendY);
+  }
+}
+
+// Función helper para dibujar un valor de genotipo con su delta
+void drawGenotypeValue(String label, float value, float parentValue, boolean hasParent, float x, float y) {
+  fill(180, 180, 220);
+  textAlign(LEFT);
+  textSize(9);
+  text(label + ": " + nf(value, 0, 2), x, y);
+  
+  if (hasParent) {
+    float delta = value - parentValue;
+    if (abs(delta) > 0.01) { // Solo mostrar si hay cambio significativo
+      float deltaX = x + 85;
+      
+      // Color según si subió o bajó
+      if (delta > 0) {
+        fill(100, 255, 100); // Verde para aumento
+        text("+" + nf(delta, 0, 2), deltaX, y);
+      } else {
+        fill(255, 100, 100); // Rojo para disminución
+        text(nf(delta, 0, 2), deltaX, y);
+      }
+    }
+  }
 }

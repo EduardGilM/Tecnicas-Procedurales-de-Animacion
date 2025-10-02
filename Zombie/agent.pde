@@ -1,11 +1,13 @@
 class Agent {
     color c = #FF0000;
     float r = 6;
-    float maxspeed = 8;
+    float baseMaxSpeed = 8;  // Velocidad base (se configura según tipo)
+    float baseMaxForce = 0.2; // Fuerza base (se configura según tipo)
+    float maxspeed = 8;  // Velocidad efectiva (base * multiplicador del genotipo)
+    float maxforce = 0.2; // Fuerza efectiva (base * multiplicador del genotipo)
     PVector velocity = new PVector(0, 0);
     PVector acceleration = new PVector(0, 0);
     PVector position = new PVector(0, 0);
-    float maxforce = 0.2;
     HashMap<String, Boolean> behaviors = new HashMap<String, Boolean>();
     float wanderTheta = 0;
     float wanderRadius = 25;
@@ -42,6 +44,14 @@ class Agent {
       this.behaviors.put(behavior, !this.behaviors.get(behavior));
     }
   }
+  
+  void updatePhysicalAttributes() {
+    // Actualizar velocidad y fuerza máximas basadas en el genotipo
+    if (this.genotype != null) {
+      this.maxspeed = this.baseMaxSpeed * this.genotype.speedMultiplier;
+      this.maxforce = this.baseMaxForce * this.genotype.forceMultiplier;
+    }
+  }
 
   void update() {
     this.velocity.add(this.acceleration);
@@ -51,8 +61,10 @@ class Agent {
     
     // Mantener dentro del área de simulación
     float rightLimit = width;
+    float bottomLimit = height;
     if (trainingMode || showTreeMode) {
       rightLimit = simulationWidth;
+      bottomLimit = simulationBottomLimit;
     }
     
     // Rebote en los bordes
@@ -68,8 +80,8 @@ class Agent {
       this.position.y = 0;
       this.velocity.y *= -1;
     }
-    if (this.position.y > height) {
-      this.position.y = height;
+    if (this.position.y > bottomLimit) {
+      this.position.y = bottomLimit;
       this.velocity.y *= -1;
     }
   }
@@ -114,6 +126,12 @@ class Agent {
       rightLimit = simulationWidth - offset;
     }
     
+    // Determinar el límite inferior basado en si hay gráfica
+    float bottomLimit = height - offset;
+    if (trainingMode || showTreeMode) {
+      bottomLimit = simulationBottomLimit - offset;
+    }
+    
     if (this.position.x < offset) {
       desired = new PVector(this.maxspeed, this.velocity.y);
     } else if (this.position.x > rightLimit) {
@@ -121,7 +139,7 @@ class Agent {
     }
     if (this.position.y < offset) {
       desired = new PVector(this.velocity.x, this.maxspeed);
-    } else if (this.position.y > height - offset) {
+    } else if (this.position.y > bottomLimit) {
       desired = new PVector(this.velocity.x, -this.maxspeed);
     }
     if (desired != null) {
@@ -316,6 +334,9 @@ class Agent {
     this.behaviors.put("separation", true);
     this.behaviors.put("alignment", true);
     this.behaviors.put("cohesion", true);
+    this.baseMaxSpeed = ZOMBIE_BASE_SPEED;
+    this.baseMaxForce = ZOMBIE_BASE_FORCE;
+    this.updatePhysicalAttributes();
   }
   
   void becomeZombieWithGenotype(Genotype zombieGenotype) {
@@ -325,6 +346,9 @@ class Agent {
     this.behaviors.put("alignment", true);
     this.behaviors.put("cohesion", true);
     this.genotype = zombieGenotype.copy(); // Copiar el genotipo de los zombies
+    this.baseMaxSpeed = ZOMBIE_BASE_SPEED;
+    this.baseMaxForce = ZOMBIE_BASE_FORCE;
+    this.updatePhysicalAttributes();
   }
   
   PVector pursueNearestHuman(ArrayList<Agent> agents) {
