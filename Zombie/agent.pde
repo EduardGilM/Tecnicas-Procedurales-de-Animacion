@@ -15,17 +15,7 @@ class Agent {
     boolean isZombie = false;
     float captureRadius = 15;
     
-    float seekMultiplier;
-    float fleeMultiplier;
-    float arriveMultiplier;
-    float wanderMultiplier;
-    float pursueMultiplier;
-    float evadeMultiplier;
-    float pathFollowMultiplier;
-    float obstacleAvoidanceMultiplier;
-    float separationMultiplier;
-    float alignmentMultiplier;
-    float cohesionMultiplier;
+    Genotype genotype;
 
   Agent(color c, PVector position) {
     this.c = c;
@@ -43,18 +33,8 @@ class Agent {
     this.behaviors.put("separation", false);
     this.behaviors.put("alignment", false);
     this.behaviors.put("cohesion", false);
-    
-    this.seekMultiplier = random(0.5, 2.0);
-    this.fleeMultiplier = random(0.8, 2.5);
-    this.arriveMultiplier = random(0.5, 1.8);
-    this.wanderMultiplier = random(0.1, 0.3);
-    this.pursueMultiplier = random(0.8, 2.2);
-    this.evadeMultiplier = random(1.0, 2.5);
-    this.pathFollowMultiplier = random(0.7, 1.5);
-    this.obstacleAvoidanceMultiplier = random(2.0, 4.0);
-    this.separationMultiplier = random(1.0, 2.5);
-    this.alignmentMultiplier = random(0.5, 1.5);
-    this.cohesionMultiplier = random(0.8, 2.0);
+
+    this.genotype = new Genotype();
   }
 
   void setBehavior(String behavior) {
@@ -68,6 +48,30 @@ class Agent {
     this.velocity.limit(this.maxspeed);
     this.position.add(this.velocity);
     this.acceleration.mult(0);
+    
+    // Mantener dentro del área de simulación
+    float rightLimit = width;
+    if (trainingMode || showTreeMode) {
+      rightLimit = simulationWidth;
+    }
+    
+    // Rebote en los bordes
+    if (this.position.x < 0) {
+      this.position.x = 0;
+      this.velocity.x *= -1;
+    }
+    if (this.position.x > rightLimit) {
+      this.position.x = rightLimit;
+      this.velocity.x *= -1;
+    }
+    if (this.position.y < 0) {
+      this.position.y = 0;
+      this.velocity.y *= -1;
+    }
+    if (this.position.y > height) {
+      this.position.y = height;
+      this.velocity.y *= -1;
+    }
   }
 
   PVector seek(PVector target) {
@@ -103,9 +107,16 @@ class Agent {
     PVector desired = null;
     PVector steer = new PVector(0, 0);
     float offset = 20;
+    
+    // Determinar el límite derecho basado en si estamos en modo entrenamiento
+    float rightLimit = width - offset;
+    if (trainingMode || showTreeMode) {
+      rightLimit = simulationWidth - offset;
+    }
+    
     if (this.position.x < offset) {
       desired = new PVector(this.maxspeed, this.velocity.y);
-    } else if (this.position.x > width - offset) {
+    } else if (this.position.x > rightLimit) {
       desired = new PVector(-this.maxspeed, this.velocity.y);
     }
     if (this.position.y < offset) {
@@ -307,6 +318,15 @@ class Agent {
     this.behaviors.put("cohesion", true);
   }
   
+  void becomeZombieWithGenotype(Genotype zombieGenotype) {
+    this.isZombie = true;
+    this.c = color(0, 255, 0);
+    this.behaviors.put("separation", true);
+    this.behaviors.put("alignment", true);
+    this.behaviors.put("cohesion", true);
+    this.genotype = zombieGenotype.copy(); // Copiar el genotipo de los zombies
+  }
+  
   PVector pursueNearestHuman(ArrayList<Agent> agents) {
     Agent target = null;
     float minDistance = Float.MAX_VALUE;
@@ -353,7 +373,8 @@ class Agent {
         if (!other.isZombie) {
           float d = PVector.dist(this.position, other.position);
           if (d < this.captureRadius) {
-            other.becomeZombie();
+            // Copiar el genotipo del zombie que captura
+            other.becomeZombieWithGenotype(this.genotype);
           }
         }
       }
