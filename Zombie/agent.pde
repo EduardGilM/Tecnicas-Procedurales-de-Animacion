@@ -9,10 +9,10 @@ class Agent {
     PVector acceleration = new PVector(0, 0);
     PVector position = new PVector(0, 0);
     HashMap<String, Boolean> behaviors = new HashMap<String, Boolean>();
-    float wanderTheta = 0;
+    float wanderTheta = 0.1;
     float wanderRadius = 25;
-    float wanderDistance = 80;
-    float wanderChange = 0.3;
+    float wanderDistance = 100;
+    float wanderChange = 0.2;
     
     boolean isZombie = false;
     float captureRadius = 15;

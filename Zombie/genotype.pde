@@ -17,16 +17,16 @@ class Genotype {
         this.seekMultiplier = random(0.5, 6);
         this.fleeMultiplier = random(0.5, 6);
         this.arriveMultiplier = random(0.5, 6);
-        this.wanderMultiplier = random(0.5, 6);
+        this.wanderMultiplier = random(0.5, 3);
         this.pursueMultiplier = random(0.5, 6);
         this.evadeMultiplier = random(0.5, 6);
         this.pathFollowMultiplier = random(0.5, 6);
         this.obstacleAvoidanceMultiplier = random(0.5, 6);
-        this.separationMultiplier = random(0.5, 6);
-        this.alignmentMultiplier = random(0.5, 6);
-        this.cohesionMultiplier = random(0.5, 6);
-        this.speedMultiplier = random(0.7, 1.5);  // Varía la velocidad entre 70% y 150%
-        this.forceMultiplier = random(0.7, 1.5);  // Varía la fuerza entre 70% y 150%
+        this.separationMultiplier = random(2, 4);
+        this.alignmentMultiplier = random(1.5, 6);
+        this.cohesionMultiplier = random(0.5, 3);
+        this.speedMultiplier = random(0.7, 0.8);  // Varía la velocidad entre 70% y 150%
+        this.forceMultiplier = random(0.7, 0.8);  // Varía la fuerza entre 70% y 150%
     }
     
     Genotype copy() {

@@ -24,11 +24,11 @@ class Evolution {
     this.agents = agents;
     this.generation = 0;
     this.reward = 0;
-    this.mutationRate = 0.7;
-    this.crossoverRate = 0.3;
+    this.mutationRate = 0.9;
+    this.crossoverRate = 0.5;
     this.bestScore = 0;
     this.evolutionType = 0.5; // Menor a 0.5 favorece mutaciones, mayor a 0.5 cruces
-    this.evolutionRate = 0.2;
+    this.evolutionRate = 0.3;
     this.zombieGenotype = initialZombieGenotype;
     this.humanGenotype = initialHumanGenotype;
     this.maxTime = 20.0;
@@ -316,7 +316,7 @@ class Evolution {
     }
     if (random(1.0) < this.mutationRate) {
       this.zombieGenotype.wanderMultiplier += random(-this.evolutionRate, this.evolutionRate);
-      this.zombieGenotype.wanderMultiplier = constrain(this.zombieGenotype.wanderMultiplier, 0.5, 6);
+      this.zombieGenotype.wanderMultiplier = constrain(this.zombieGenotype.wanderMultiplier, 0.5, 3);
     }
     if (random(1.0) < this.mutationRate) {
       this.zombieGenotype.pursueMultiplier += random(-this.evolutionRate, this.evolutionRate);
@@ -336,7 +336,7 @@ class Evolution {
     }
     if (random(1.0) < this.mutationRate) {
       this.zombieGenotype.separationMultiplier += random(-this.evolutionRate, this.evolutionRate);
-      this.zombieGenotype.separationMultiplier = constrain(this.zombieGenotype.separationMultiplier, 0.5, 6);
+      this.zombieGenotype.separationMultiplier = constrain(this.zombieGenotype.separationMultiplier, 2, 8);
     }
     if (random(1.0) < this.mutationRate) {
       this.zombieGenotype.speedMultiplier += random(-this.evolutionRate, this.evolutionRate);
