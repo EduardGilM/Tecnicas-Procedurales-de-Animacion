@@ -1,6 +1,6 @@
 int TRIANGLE_COUNT = 101;
 float TRIANGLE_SIZE = 6;
-int TRAINING_STEPS = 200;
+int TRAINING_STEPS = 500;
 boolean evolveZombie = true; 
 boolean evolveHuman = false;
 boolean countAgents = true; // Si es true, suma la cantidad de agentes del grupo al score 
@@ -1097,15 +1097,14 @@ ArrayList<Float> applyMovingAverage(ArrayList<Float> data, int windowSize) {
   
   ArrayList<Float> smoothed = new ArrayList<Float>();
   
-  for (int i = 0; i < data.size(); i++) {
+  // Agrupar datos en ventanas y calcular el promedio de cada ventana
+  for (int i = 0; i < data.size(); i += windowSize) {
     float sum = 0;
     int count = 0;
     
-    int halfWindow = windowSize / 2;
-    int start = max(0, i - halfWindow);
-    int end = min(data.size() - 1, i + halfWindow);
-    
-    for (int j = start; j <= end; j++) {
+    // Calcular promedio de la ventana actual
+    int end = min(i + windowSize, data.size());
+    for (int j = i; j < end; j++) {
       sum += data.get(j);
       count++;
     }

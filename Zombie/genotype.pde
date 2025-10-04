@@ -22,7 +22,7 @@ class Genotype {
         this.evadeMultiplier = random(0.5, 6);
         this.pathFollowMultiplier = random(0.5, 6);
         this.obstacleAvoidanceMultiplier = random(0.5, 6);
-        this.separationMultiplier = random(2, 4);
+        this.separationMultiplier = random(3, 4);
         this.alignmentMultiplier = random(1.5, 6);
         this.cohesionMultiplier = random(0.5, 3);
         this.speedMultiplier = random(0.7, 0.8);  // Varía la velocidad entre 70% y 150%

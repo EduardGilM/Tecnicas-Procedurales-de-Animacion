@@ -28,7 +28,7 @@ class Evolution {
     this.crossoverRate = 0.5;
     this.bestScore = 0;
     this.evolutionType = 0.5; // Menor a 0.5 favorece mutaciones, mayor a 0.5 cruces
-    this.evolutionRate = 0.3;
+    this.evolutionRate = 0.2;
     this.zombieGenotype = initialZombieGenotype;
     this.humanGenotype = initialHumanGenotype;
     this.maxTime = 20.0;
@@ -340,11 +340,11 @@ class Evolution {
     }
     if (random(1.0) < this.mutationRate) {
       this.zombieGenotype.speedMultiplier += random(-this.evolutionRate, this.evolutionRate);
-      this.zombieGenotype.speedMultiplier = constrain(this.zombieGenotype.speedMultiplier, 0.7, 1.5);
+      this.zombieGenotype.speedMultiplier = constrain(this.zombieGenotype.speedMultiplier, 0.7, 3);
     }
     if (random(1.0) < this.mutationRate) {
       this.zombieGenotype.forceMultiplier += random(-this.evolutionRate, this.evolutionRate);
-      this.zombieGenotype.forceMultiplier = constrain(this.zombieGenotype.forceMultiplier, 0.7, 1.5);
+      this.zombieGenotype.forceMultiplier = constrain(this.zombieGenotype.forceMultiplier, 0.7, 2);
     }
   }
 
