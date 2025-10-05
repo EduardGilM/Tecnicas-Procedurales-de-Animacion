@@ -24,11 +24,11 @@ class Evolution {
     this.agents = agents;
     this.generation = 0;
     this.reward = 0;
-    this.mutationRate = 0.9;
+    this.mutationRate = 0.8;
     this.crossoverRate = 0.5;
     this.bestScore = 0;
     this.evolutionType = 0.5; // Menor a 0.5 favorece mutaciones, mayor a 0.5 cruces
-    this.evolutionRate = 0.2;
+    this.evolutionRate = 0.5;
     this.zombieGenotype = initialZombieGenotype;
     this.humanGenotype = initialHumanGenotype;
     this.maxTime = 20.0;

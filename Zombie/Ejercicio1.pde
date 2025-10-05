@@ -1,6 +1,6 @@
-int TRIANGLE_COUNT = 101;
+int TRIANGLE_COUNT = 201;
 float TRIANGLE_SIZE = 6;
-int TRAINING_STEPS = 500;
+int TRAINING_STEPS = 540;
 boolean evolveZombie = true; 
 boolean evolveHuman = false;
 boolean countAgents = true; // Si es true, suma la cantidad de agentes del grupo al score 
@@ -408,6 +408,9 @@ void draw() {
     // Toda la pantalla cuando no hay entrenamiento
     rect(offset, offset, width - 2 * offset, height - 2 * offset);
   }
+  
+  // Dibujar FPS en la esquina superior derecha
+  drawFPS();
 }
 
 void resetAgentsWithGenotypes(Genotype zombieGenotype, Genotype humanGenotype) {
@@ -1137,4 +1140,39 @@ void drawGenotypeValue(String label, float value, float parentValue, boolean has
       }
     }
   }
+}
+
+// Función para dibujar FPS en la esquina superior derecha
+void drawFPS() {
+  // Calcular FPS
+  float fps = frameRate;
+  
+  // Determinar el área visible según el modo
+  float rightEdge = width;
+  if (trainingMode || showTreeMode) {
+    rightEdge = simulationWidth;
+  }
+  
+  // Fondo semi-transparente para mejor legibilidad
+  fill(0, 0, 0, 150);
+  noStroke();
+  float boxWidth = 80;
+  float boxHeight = 30;
+  float margin = 10;
+  rect(rightEdge - boxWidth - margin, margin, boxWidth, boxHeight, 5);
+  
+  // Texto de FPS con color según el rendimiento
+  textAlign(CENTER, CENTER);
+  textSize(16);
+  
+  // Color según FPS: Verde (>50), Amarillo (30-50), Rojo (<30)
+  if (fps > 50) {
+    fill(100, 255, 100);
+  } else if (fps > 30) {
+    fill(255, 255, 100);
+  } else {
+    fill(255, 100, 100);
+  }
+  
+  text(int(fps) + " FPS", rightEdge - boxWidth/2 - margin, margin + boxHeight/2);
 }
