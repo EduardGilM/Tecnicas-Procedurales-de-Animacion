@@ -1,8 +1,8 @@
 int TRIANGLE_COUNT = 201;
 float TRIANGLE_SIZE = 6;
-int TRAINING_STEPS = 540;
+int TRAINING_STEPS = 180;
 boolean evolveZombie = true; 
-boolean evolveHuman = false;
+boolean evolveHuman = true;
 boolean countAgents = true; // Si es true, suma la cantidad de agentes del grupo al score 
 
 // Configuración física de agentes
@@ -612,31 +612,40 @@ void drawTreePanel() {
     text("Score Promedio: " + nf(evolution.zombieEvolutionTree.getAverageScore(), 0, 2), 15, height - 70);
     text("Score Mínimo: " + nf(evolution.zombieEvolutionTree.getMinScore(), 0, 2), 15, height - 50);
     
-    // Mostrar valores del genotipo del NODO ACTUAL (última generación)
+    // Mostrar valores del genotipo del AGENTE ACTUAL en la simulación
     float rightColX = treeWidth / 2 + 20;
     textAlign(LEFT);
     textSize(10);
     fill(255, 200, 100);
     
-    if (evolution.currentZombieNode != null) {
-      text("Genotipo Actual (Gen " + evolution.currentZombieNode.generation + "):", rightColX, height - 160);
+    if (evolution.zombieGenotype != null) {
+      text("Genotipo Actual (Gen " + evolution.generation + "):", rightColX, height - 160);
       
-      // Obtener genotipo del padre si existe
-      TreeNode current = evolution.currentZombieNode;
-      Genotype parentGenotype = (current.parent != null) ? current.parent.genotype : null;
+      // Obtener genotipo del MEJOR nodo del árbol para comparar los deltas
+      TreeNode bestNode = evolution.zombieEvolutionTree.getBestNode();
+      Genotype bestGenotype = (bestNode != null) ? bestNode.genotype : null;
+      
+      // Indicar con qué se compara
+      if (bestGenotype != null && bestNode != null) {
+        fill(150, 150, 200);
+        textSize(8);
+        text("Δ vs Mejor (Gen " + bestNode.generation + ", Score: " + nf(bestNode.score, 0, 1) + ")", rightColX, height - 150);
+      }
       
       textSize(9);
       int yPos = height - 145;
       int lineSpacing = 12;
       
-      drawGenotypeValue("Speed", current.genotype.speedMultiplier, parentGenotype != null ? parentGenotype.speedMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
-      drawGenotypeValue("Force", current.genotype.forceMultiplier, parentGenotype != null ? parentGenotype.forceMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
-      drawGenotypeValue("Pursue", current.genotype.pursueMultiplier, parentGenotype != null ? parentGenotype.pursueMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
-      drawGenotypeValue("Evade", current.genotype.evadeMultiplier, parentGenotype != null ? parentGenotype.evadeMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
-      drawGenotypeValue("Separ.", current.genotype.separationMultiplier, parentGenotype != null ? parentGenotype.separationMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
-      drawGenotypeValue("Align.", current.genotype.alignmentMultiplier, parentGenotype != null ? parentGenotype.alignmentMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
-      drawGenotypeValue("Cohes.", current.genotype.cohesionMultiplier, parentGenotype != null ? parentGenotype.cohesionMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
-      drawGenotypeValue("Wander", current.genotype.wanderMultiplier, parentGenotype != null ? parentGenotype.wanderMultiplier : 0, parentGenotype != null, rightColX, yPos);
+      // Mostrar el genotipo ACTUAL pero comparar con el MEJOR
+      Genotype currentGenotype = evolution.zombieGenotype;
+      drawGenotypeValue("Speed", currentGenotype.speedMultiplier, bestGenotype != null ? bestGenotype.speedMultiplier : 0, bestGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Force", currentGenotype.forceMultiplier, bestGenotype != null ? bestGenotype.forceMultiplier : 0, bestGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Pursue", currentGenotype.pursueMultiplier, bestGenotype != null ? bestGenotype.pursueMultiplier : 0, bestGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Evade", currentGenotype.evadeMultiplier, bestGenotype != null ? bestGenotype.evadeMultiplier : 0, bestGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Separ.", currentGenotype.separationMultiplier, bestGenotype != null ? bestGenotype.separationMultiplier : 0, bestGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Align.", currentGenotype.alignmentMultiplier, bestGenotype != null ? bestGenotype.alignmentMultiplier : 0, bestGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Cohes.", currentGenotype.cohesionMultiplier, bestGenotype != null ? bestGenotype.cohesionMultiplier : 0, bestGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Wander", currentGenotype.wanderMultiplier, bestGenotype != null ? bestGenotype.wanderMultiplier : 0, bestGenotype != null, rightColX, yPos);
     } else {
       text("Genotipo no disponible", rightColX, height - 160);
     }
@@ -687,31 +696,40 @@ void drawTreePanel() {
     text("Score Promedio: " + nf(evolution.humanEvolutionTree.getAverageScore(), 0, 2), 15, height - 70);
     text("Score Mínimo: " + nf(evolution.humanEvolutionTree.getMinScore(), 0, 2), 15, height - 50);
     
-    // Mostrar valores del genotipo del NODO ACTUAL (última generación)
+    // Mostrar valores del genotipo del AGENTE ACTUAL en la simulación
     float rightColX = treeWidth / 2 + 20;
     textAlign(LEFT);
     textSize(10);
     fill(255, 200, 100);
     
-    if (evolution.currentHumanNode != null) {
-      text("Genotipo Actual (Gen " + evolution.currentHumanNode.generation + "):", rightColX, height - 160);
+    if (evolution.humanGenotype != null) {
+      text("Genotipo Actual (Gen " + evolution.generation + "):", rightColX, height - 160);
       
-      // Obtener genotipo del padre si existe
-      TreeNode current = evolution.currentHumanNode;
-      Genotype parentGenotype = (current.parent != null) ? current.parent.genotype : null;
+      // Obtener genotipo del MEJOR nodo del árbol para comparar los deltas
+      TreeNode bestNode = evolution.humanEvolutionTree.getBestNode();
+      Genotype bestGenotype = (bestNode != null) ? bestNode.genotype : null;
+      
+      // Indicar con qué se compara
+      if (bestGenotype != null && bestNode != null) {
+        fill(150, 150, 200);
+        textSize(8);
+        text("Δ vs Mejor (Gen " + bestNode.generation + ", Score: " + nf(bestNode.score, 0, 1) + ")", rightColX, height - 150);
+      }
       
       textSize(9);
       int yPos = height - 145;
       int lineSpacing = 12;
       
-      drawGenotypeValue("Speed", current.genotype.speedMultiplier, parentGenotype != null ? parentGenotype.speedMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
-      drawGenotypeValue("Force", current.genotype.forceMultiplier, parentGenotype != null ? parentGenotype.forceMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
-      drawGenotypeValue("Pursue", current.genotype.pursueMultiplier, parentGenotype != null ? parentGenotype.pursueMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
-      drawGenotypeValue("Evade", current.genotype.evadeMultiplier, parentGenotype != null ? parentGenotype.evadeMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
-      drawGenotypeValue("Separ.", current.genotype.separationMultiplier, parentGenotype != null ? parentGenotype.separationMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
-      drawGenotypeValue("Align.", current.genotype.alignmentMultiplier, parentGenotype != null ? parentGenotype.alignmentMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
-      drawGenotypeValue("Cohes.", current.genotype.cohesionMultiplier, parentGenotype != null ? parentGenotype.cohesionMultiplier : 0, parentGenotype != null, rightColX, yPos); yPos += lineSpacing;
-      drawGenotypeValue("Wander", current.genotype.wanderMultiplier, parentGenotype != null ? parentGenotype.wanderMultiplier : 0, parentGenotype != null, rightColX, yPos);
+      // Mostrar el genotipo ACTUAL pero comparar con el MEJOR
+      Genotype currentGenotype = evolution.humanGenotype;
+      drawGenotypeValue("Speed", currentGenotype.speedMultiplier, bestGenotype != null ? bestGenotype.speedMultiplier : 0, bestGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Force", currentGenotype.forceMultiplier, bestGenotype != null ? bestGenotype.forceMultiplier : 0, bestGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Pursue", currentGenotype.pursueMultiplier, bestGenotype != null ? bestGenotype.pursueMultiplier : 0, bestGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Evade", currentGenotype.evadeMultiplier, bestGenotype != null ? bestGenotype.evadeMultiplier : 0, bestGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Separ.", currentGenotype.separationMultiplier, bestGenotype != null ? bestGenotype.separationMultiplier : 0, bestGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Align.", currentGenotype.alignmentMultiplier, bestGenotype != null ? bestGenotype.alignmentMultiplier : 0, bestGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Cohes.", currentGenotype.cohesionMultiplier, bestGenotype != null ? bestGenotype.cohesionMultiplier : 0, bestGenotype != null, rightColX, yPos); yPos += lineSpacing;
+      drawGenotypeValue("Wander", currentGenotype.wanderMultiplier, bestGenotype != null ? bestGenotype.wanderMultiplier : 0, bestGenotype != null, rightColX, yPos);
     } else {
       text("Genotipo no disponible", rightColX, height - 160);
     }

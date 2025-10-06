@@ -91,10 +91,49 @@ class Evolution {
     TreeNode bestZombieNode = null;
     TreeNode bestHumanNode = null;
     
+    // PASO 1: Añadir el nodo actual al árbol con su score ANTES de buscar el mejor para la siguiente generación
+    if (evolveZombie && this.zombieEvolutionTree != null && this.agents.size() > 0) {
+      // El padre es el nodo del que proviene este genotipo (puede ser el mejor de la generación anterior)
+      TreeNode parentNode = this.currentZombieNode != null ? this.currentZombieNode : this.zombieEvolutionTree.root;
+      
+      // Añadir el nuevo nodo con el genotipo ACTUAL y su score
+      TreeNode newNode = this.zombieEvolutionTree.addNode(
+        parentNode,
+        this.generation + 1, 
+        zombieScore, 
+        this.zombieGenotype.copy(),
+        "evaluation"
+      );
+      
+      if (newNode != null) {
+        this.currentZombieNode = newNode;
+      }
+    }
+    
+    if (evolveHuman && this.humanEvolutionTree != null && this.agents.size() > 0) {
+      TreeNode parentNode = this.currentHumanNode != null ? this.currentHumanNode : this.humanEvolutionTree.root;
+      
+      TreeNode newNode = this.humanEvolutionTree.addNode(
+        parentNode,
+        this.generation + 1, 
+        humanScore, 
+        this.humanGenotype.copy(),
+        "evaluation"
+      );
+      
+      if (newNode != null) {
+        this.currentHumanNode = newNode;
+      }
+    }
+    
+    // PASO 2: Ahora buscar el MEJOR nodo del árbol para usarlo como base de la siguiente generación
     if (evolveZombie && this.zombieEvolutionTree != null) {
       bestZombieNode = this.zombieEvolutionTree.getBestNode();
       if (bestZombieNode != null) {
+        // Copiar el genotipo del mejor
         this.zombieGenotype = bestZombieNode.genotype.copy();
+        // Actualizar el nodo actual para que apunte al mejor (será el padre de la siguiente)
+        this.currentZombieNode = bestZombieNode;
       }
     }
     
@@ -102,80 +141,26 @@ class Evolution {
       bestHumanNode = this.humanEvolutionTree.getBestNode();
       if (bestHumanNode != null) {
         this.humanGenotype = bestHumanNode.genotype.copy();
+        this.currentHumanNode = bestHumanNode;
       }
     }
     
-    String zombieMutationType = "";
+    // PASO 3: Mutar o cruzar el mejor genotipo para crear la siguiente generación
     if (evolveZombie) {
       this.secondZombieParent = null;
       if (this.crossoverRate > 0 && random(1.0) < this.evolutionType) {
-        zombieMutationType = "crossover";
         this.crossoverZombies();
       } else {
-        zombieMutationType = "mutation";
         this.mutateZombies();
       }
     }
     
-    String humanMutationType = "";
     if (evolveHuman) {
       this.secondHumanParent = null;
       if (this.crossoverRate > 0 && random(1.0) < this.evolutionType) {
-        humanMutationType = "crossover";
         this.crossoverHumans();
       } else {
-        humanMutationType = "mutation";
         this.mutateHumans();
-      }
-    }
-    
-    if (evolveZombie && this.zombieEvolutionTree != null && this.agents.size() > 0 && bestZombieNode != null) {
-      TreeNode newNode = null;
-      if (zombieMutationType.equals("crossover") && this.secondZombieParent != null) {
-        newNode = this.zombieEvolutionTree.addNode(
-          bestZombieNode,
-          this.secondZombieParent,
-          this.generation + 1, 
-          zombieScore, 
-          this.zombieGenotype,
-          zombieMutationType
-        );
-      } else {
-        newNode = this.zombieEvolutionTree.addNode(
-          bestZombieNode,
-          this.generation + 1, 
-          zombieScore, 
-          this.zombieGenotype,
-          zombieMutationType
-        );
-      }
-      if (newNode != null) {
-        this.currentZombieNode = newNode;
-      }
-    }
-    
-    if (evolveHuman && this.humanEvolutionTree != null && this.agents.size() > 0 && bestHumanNode != null) {
-      TreeNode newNode = null;
-      if (humanMutationType.equals("crossover") && this.secondHumanParent != null) {
-        newNode = this.humanEvolutionTree.addNode(
-          bestHumanNode,
-          this.secondHumanParent,
-          this.generation + 1, 
-          humanScore, 
-          this.humanGenotype,
-          humanMutationType
-        );
-      } else {
-        newNode = this.humanEvolutionTree.addNode(
-          bestHumanNode,
-          this.generation + 1, 
-          humanScore, 
-          this.humanGenotype,
-          humanMutationType
-        );
-      }
-      if (newNode != null) {
-        this.currentHumanNode = newNode;
       }
     }
     
@@ -209,7 +194,7 @@ class Evolution {
           humanCount++;
         }
       }
-      score -= (TRIANGLE_COUNT - humanCount - 1);
+      score += humanCount;
     }
     
     return score;
@@ -371,7 +356,7 @@ class Evolution {
     }
     if (random(1.0) < this.mutationRate) {
       this.humanGenotype.wanderMultiplier += random(-this.evolutionRate, this.evolutionRate);
-      this.humanGenotype.wanderMultiplier = constrain(this.humanGenotype.wanderMultiplier, 0.5, 6);
+      this.humanGenotype.wanderMultiplier = constrain(this.humanGenotype.wanderMultiplier, 0.5, 3);
     }
     if (random(1.0) < this.mutationRate) {
       this.humanGenotype.pursueMultiplier += random(-this.evolutionRate, this.evolutionRate);
@@ -391,15 +376,15 @@ class Evolution {
     }
     if (random(1.0) < this.mutationRate) {
       this.humanGenotype.separationMultiplier += random(-this.evolutionRate, this.evolutionRate);
-      this.humanGenotype.separationMultiplier = constrain(this.humanGenotype.separationMultiplier, 0.5, 6);
+      this.humanGenotype.separationMultiplier = constrain(this.humanGenotype.separationMultiplier, 2, 8);
     }
     if (random(1.0) < this.mutationRate) {
       this.humanGenotype.speedMultiplier += random(-this.evolutionRate, this.evolutionRate);
-      this.humanGenotype.speedMultiplier = constrain(this.humanGenotype.speedMultiplier, 0.7, 1.5);
+      this.humanGenotype.speedMultiplier = constrain(this.humanGenotype.speedMultiplier, 0.7, 3);
     }
     if (random(1.0) < this.mutationRate) {
       this.humanGenotype.forceMultiplier += random(-this.evolutionRate, this.evolutionRate);
-      this.humanGenotype.forceMultiplier = constrain(this.humanGenotype.forceMultiplier, 0.7, 1.5);
+      this.humanGenotype.forceMultiplier = constrain(this.humanGenotype.forceMultiplier, 0.7, 2);
     }
   }
   
