@@ -201,7 +201,6 @@ private void assignDepthsAndPositions(TreeNode node, int depth, HashMap<TreeNode
     textSize(8);
     text("G" + node.generation, x, y + size/2 + 10);
     
-    // Mostrar tipo de mutación debajo del nodo
     if (!node.mutationType.equals("root")) {
       fill(100, 100, 255);
       textSize(7);
@@ -259,8 +258,7 @@ private void assignDepthsAndPositions(TreeNode node, int depth, HashMap<TreeNode
     
     return path;
   }
-  
-  // Obtener el mejor score de cada generación
+
   ArrayList<Float> getBestScoresByGeneration() {
     ArrayList<Float> bestScores = new ArrayList<Float>();
     

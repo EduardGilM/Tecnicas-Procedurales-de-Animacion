@@ -3,13 +3,12 @@ float TRIANGLE_SIZE = 6;
 int TRAINING_STEPS = 180;
 boolean evolveZombie = true; 
 boolean evolveHuman = true;
-boolean countAgents = true; // Si es true, suma la cantidad de agentes del grupo al score 
+boolean countAgents = true;
 
-// Configuración física de agentes
-float ZOMBIE_BASE_SPEED = 7.0;   // Velocidad base de zombies
-float ZOMBIE_BASE_FORCE = 0.12;  // Fuerza base de zombies
-float HUMAN_BASE_SPEED = 7.0;    // Velocidad base de humanos (más rápidos)
-float HUMAN_BASE_FORCE = 0.12;   // Fuerza base de humanos
+float ZOMBIE_BASE_SPEED = 7.0; 
+float ZOMBIE_BASE_FORCE = 0.12;
+float HUMAN_BASE_SPEED = 7.0;
+float HUMAN_BASE_FORCE = 0.12; 
 
 ArrayList<Agent> agents = new ArrayList<Agent>();
 ArrayList<Path> paths = new ArrayList<Path>();
@@ -21,25 +20,22 @@ boolean trainingMode = false;
 boolean showTreeMode = false;
 int trainingStepsCompleted = 0;
 
-// Promedio móvil para la gráfica
 int[] movingAverageOptions = {1, 5, 10, 20, 50, 100};
 int movingAverageIndex = 0;
 int movingAverageWindow = 1;
 
-// Áreas de la pantalla
 int simulationWidth;
 int treeWidth = 450;
 int dividerX;
-float simulationBottomLimit; // Límite inferior para que los agentes no entren en la gráfica
+float simulationBottomLimit;
 
 void setup() {
   fullScreen();
   frameRate(60);
   
-  // Calcular áreas
   simulationWidth = width - treeWidth;
   dividerX = simulationWidth;
-  simulationBottomLimit = height; // Se actualizará cuando haya gráfica
+  simulationBottomLimit = height;
   
   for (int i = 0; i < TRIANGLE_COUNT; i++) {
     float x = random(50, simulationWidth-50);
@@ -48,8 +44,7 @@ void setup() {
     float angle = random(TWO_PI);
     float speed = random(2, 5);
     agent.velocity = new PVector(cos(angle) * speed, sin(angle) * speed);
-    
-    // Configurar valores base según el tipo
+
     if (i == 0) {
       agent.baseMaxSpeed = ZOMBIE_BASE_SPEED;
       agent.baseMaxForce = ZOMBIE_BASE_FORCE;
@@ -65,8 +60,7 @@ void setup() {
   if (agents.size() > 0) {
     agents.get(0).becomeZombie();
   }
-  
-  // Usar posiciones relativas al área de simulación
+
   float simW = simulationWidth;
   float simH = height;
   
@@ -104,7 +98,6 @@ void setup() {
   
   obstacles.add(new Obstacle(simW * 0.375, simH * 0.333, 35, 0)); // Círculo
   obstacles.add(new Obstacle(simW * 0.625, simH * 0.583, 40, 1)); // Cuadrado
-  // Obstáculo triangular y hexagonal eliminados
   
   Genotype zombieGenotype = new Genotype();
   Genotype humanGenotype = new Genotype();
@@ -206,7 +199,6 @@ void keyPressed() {
   if (key == 'r' || key == 'R') {
     agents.clear();
     
-    // Usar área completa si no estamos en modo entrenamiento
     float maxX = (trainingMode || showTreeMode) ? simulationWidth - 50 : width - 50;
     
     for (int i = 0; i < TRIANGLE_COUNT; i++) {
@@ -221,7 +213,7 @@ void keyPressed() {
     if (agents.size() > 0) {
       agents.get(0).becomeZombie();
     }
-    // Reiniciar con dos genotipos separados
+
     Genotype zombieGenotype = new Genotype();
     Genotype humanGenotype = new Genotype();
     
@@ -248,17 +240,14 @@ void keyPressed() {
 void draw() {
   background(20, 20, 40);
   
-  // Actualizar el límite inferior para los agentes ANTES de que se muevan
   if (trainingMode || showTreeMode) {
-    // Calcular el límite basado en las dimensiones de la gráfica
     float graphHeight = 300;
     float graphY = height - graphHeight - 30;
     simulationBottomLimit = graphY - 20;
   } else {
-    simulationBottomLimit = height; // Sin gráfica, usar toda la pantalla
+    simulationBottomLimit = height;
   }
   
-  // Dibujar divisor si estamos en modo entrenamiento
   if (trainingMode || showTreeMode) {
     stroke(100, 100, 150);
     strokeWeight(3);
@@ -266,10 +255,8 @@ void draw() {
   }
   
   if (showTreeMode) {
-    // Dibujar gráfica grande en pantalla completa
     drawLargeEvolutionGraph();
     
-    // Texto de información
     fill(255, 255, 0);
     textSize(28);
     textAlign(CENTER);
@@ -320,8 +307,7 @@ void draw() {
     text("ENTRENAMIENTO: " + trainingStepsCompleted + "/" + TRAINING_STEPS, simulationWidth/2, 30);
     text("Tiempo: " + nf(evolution.timeRemaining, 0, 1) + "s", simulationWidth/2, 55);
     textAlign(LEFT);
-    
-    // Mostrar árbol en el lado derecho durante el entrenamiento
+
     drawTreePanel();
   } else {
     evolution.updateTimer();
@@ -367,7 +353,7 @@ void draw() {
       force.add(a.arrive(mouse).mult(a.genotype.arriveMultiplier));
     }
     if (a.behaviors.get("wallAvoidance")) {
-      force.add(a.wallAvoidance().mult(15)); // Aumentado de 6 a 15 para mayor fuerza
+      force.add(a.wallAvoidance().mult(15));
     }
     if (a.behaviors.get("separation") && !a.isZombie) {
       force.add(a.separate(agents).mult(a.genotype.separationMultiplier));
@@ -389,27 +375,22 @@ void draw() {
     }
     a.applyForce(force);
   }
-  
-  // Dibujar gráfica de evolución en la parte inferior (solo en modo entrenamiento o árbol)
+
   if (trainingMode || showTreeMode) {
     drawEvolutionGraph();
   }
-  
-  // Dibujar borde del área de simulación DESPUÉS de la gráfica para que quede encima
+
   stroke(60, 60, 100); 
   strokeWeight(2);
   noFill();
   int offset = 20;
   if (trainingMode || showTreeMode) {
-    // Solo el área de simulación, usando simulationBottomLimit para delimitar sobre la gráfica
     float rectHeight = simulationBottomLimit - 2 * offset;
     rect(offset, offset, simulationWidth - 2 * offset, rectHeight);
   } else {
-    // Toda la pantalla cuando no hay entrenamiento
     rect(offset, offset, width - 2 * offset, height - 2 * offset);
   }
   
-  // Dibujar FPS en la esquina superior derecha
   drawFPS();
 }
 
@@ -417,22 +398,19 @@ void resetAgentsWithGenotypes(Genotype zombieGenotype, Genotype humanGenotype) {
   agents.clear();
   for (int i = 0; i < TRIANGLE_COUNT; i++) {
     float x = random(50, simulationWidth-50);
-    // Limitar la posición Y para evitar que aparezcan en el área de la gráfica
     float maxY = (trainingMode || showTreeMode) ? simulationBottomLimit - 50 : height - 50;
     float y = random(50, maxY);
     Agent agent = new Agent(#FF0000, new PVector(x, y));
     float angle = random(TWO_PI);
     float speed = random(2, 5);
     agent.velocity = new PVector(cos(angle) * speed, sin(angle) * speed);
-    
-    // El primer agente es zombie con su genotipo
+
     if (i == 0) {
       agent.genotype = zombieGenotype.copy();
       agent.baseMaxSpeed = ZOMBIE_BASE_SPEED;
       agent.baseMaxForce = ZOMBIE_BASE_FORCE;
       agent.updatePhysicalAttributes();
     } else {
-      // Los demás son humanos con su genotipo
       agent.genotype = humanGenotype.copy();
       agent.baseMaxSpeed = HUMAN_BASE_SPEED;
       agent.baseMaxForce = HUMAN_BASE_FORCE;
@@ -542,22 +520,18 @@ void drawBehaviorStatus(String label, boolean isActive, int x, int y) {
 }
 
 void drawTreePanel() {
-  // Área del panel del árbol
   pushMatrix();
   translate(dividerX, 0);
   
-  // Fondo del panel
   fill(30, 30, 50);
   noStroke();
   rect(0, 0, treeWidth, height);
   
-  // Título
   fill(255, 255, 0);
   textSize(20);
   textAlign(CENTER);
   text("ÁRBOL DE EVOLUCIÓN", treeWidth/2, 30);
-  
-  // Estadísticas generales en la parte superior
+
   fill(200, 220, 255);
   textSize(12);
   textAlign(LEFT);
@@ -569,20 +543,15 @@ void drawTreePanel() {
     textSize(14);
     textAlign(CENTER);
     text("Evolución de Zombies", treeWidth/2, 55);
-    
-    // Calcular posición para centrar el árbol en el panel
+
     float treeX = treeWidth/2;
     float treeY = 90;
     
-    // Dibujar el árbol dentro del panel (sin translate adicional)
-    // Necesitamos ajustar las coordenadas del árbol para que se dibuje en el espacio del panel
     pushMatrix();
-    // El árbol usa coordenadas absolutas, así que necesitamos compensar
     translate(-dividerX, 0);
     evolution.zombieEvolutionTree.display(dividerX + treeX, treeY, 18, treeWidth);
     popMatrix();
-    
-    // Información del árbol en la parte inferior del panel
+
     fill(40, 40, 60);
     noStroke();
     rect(0, height - 200, treeWidth, 170);
@@ -611,8 +580,7 @@ void drawTreePanel() {
     fill(200, 220, 255);
     text("Score Promedio: " + nf(evolution.zombieEvolutionTree.getAverageScore(), 0, 2), 15, height - 70);
     text("Score Mínimo: " + nf(evolution.zombieEvolutionTree.getMinScore(), 0, 2), 15, height - 50);
-    
-    // Mostrar valores del genotipo del AGENTE ACTUAL en la simulación
+
     float rightColX = treeWidth / 2 + 20;
     textAlign(LEFT);
     textSize(10);
@@ -620,12 +588,10 @@ void drawTreePanel() {
     
     if (evolution.zombieGenotype != null) {
       text("Genotipo Actual (Gen " + evolution.generation + "):", rightColX, height - 160);
-      
-      // Obtener genotipo del MEJOR nodo del árbol para comparar los deltas
+
       TreeNode bestNode = evolution.zombieEvolutionTree.getBestNode();
       Genotype bestGenotype = (bestNode != null) ? bestNode.genotype : null;
-      
-      // Indicar con qué se compara
+
       if (bestGenotype != null && bestNode != null) {
         fill(150, 150, 200);
         textSize(8);
@@ -635,8 +601,7 @@ void drawTreePanel() {
       textSize(9);
       int yPos = height - 145;
       int lineSpacing = 12;
-      
-      // Mostrar el genotipo ACTUAL pero comparar con el MEJOR
+
       Genotype currentGenotype = evolution.zombieGenotype;
       drawGenotypeValue("Speed", currentGenotype.speedMultiplier, bestGenotype != null ? bestGenotype.speedMultiplier : 0, bestGenotype != null, rightColX, yPos); yPos += lineSpacing;
       drawGenotypeValue("Force", currentGenotype.forceMultiplier, bestGenotype != null ? bestGenotype.forceMultiplier : 0, bestGenotype != null, rightColX, yPos); yPos += lineSpacing;
@@ -655,18 +620,15 @@ void drawTreePanel() {
     textSize(14);
     textAlign(CENTER);
     text("Evolución de Humanos", treeWidth/2, 55);
-    
-    // Calcular posición para centrar el árbol en el panel
+
     float treeX = treeWidth/2;
     float treeY = 90;
-    
-    // Dibujar el árbol dentro del panel
+
     pushMatrix();
     translate(-dividerX, 0);
     evolution.humanEvolutionTree.display(dividerX + treeX, treeY, 18, treeWidth);
     popMatrix();
-    
-    // Información del árbol en la parte inferior del panel
+
     fill(40, 40, 60);
     noStroke();
     rect(0, height - 200, treeWidth, 170);
@@ -695,8 +657,7 @@ void drawTreePanel() {
     fill(200, 220, 255);
     text("Score Promedio: " + nf(evolution.humanEvolutionTree.getAverageScore(), 0, 2), 15, height - 70);
     text("Score Mínimo: " + nf(evolution.humanEvolutionTree.getMinScore(), 0, 2), 15, height - 50);
-    
-    // Mostrar valores del genotipo del AGENTE ACTUAL en la simulación
+
     float rightColX = treeWidth / 2 + 20;
     textAlign(LEFT);
     textSize(10);
@@ -704,12 +665,10 @@ void drawTreePanel() {
     
     if (evolution.humanGenotype != null) {
       text("Genotipo Actual (Gen " + evolution.generation + "):", rightColX, height - 160);
-      
-      // Obtener genotipo del MEJOR nodo del árbol para comparar los deltas
+
       TreeNode bestNode = evolution.humanEvolutionTree.getBestNode();
       Genotype bestGenotype = (bestNode != null) ? bestNode.genotype : null;
-      
-      // Indicar con qué se compara
+
       if (bestGenotype != null && bestNode != null) {
         fill(150, 150, 200);
         textSize(8);
@@ -719,8 +678,7 @@ void drawTreePanel() {
       textSize(9);
       int yPos = height - 145;
       int lineSpacing = 12;
-      
-      // Mostrar el genotipo ACTUAL pero comparar con el MEJOR
+
       Genotype currentGenotype = evolution.humanGenotype;
       drawGenotypeValue("Speed", currentGenotype.speedMultiplier, bestGenotype != null ? bestGenotype.speedMultiplier : 0, bestGenotype != null, rightColX, yPos); yPos += lineSpacing;
       drawGenotypeValue("Force", currentGenotype.forceMultiplier, bestGenotype != null ? bestGenotype.forceMultiplier : 0, bestGenotype != null, rightColX, yPos); yPos += lineSpacing;
@@ -739,26 +697,22 @@ void drawTreePanel() {
 }
 
 void drawEvolutionGraph() {
-  // Dimensiones y posición de la gráfica
-  float graphHeight = 300; // Aumentado de 200 a 300 para reducir el área de movimiento
+  float graphHeight = 300;
   float graphWidth = simulationWidth - 100;
   float graphX = 50;
   float graphY = height - graphHeight - 30;
   float padding = 40;
-  
-  // Fondo de la gráfica
+
   fill(30, 30, 50, 230);
   stroke(100, 100, 150);
   strokeWeight(2);
   rect(graphX, graphY, graphWidth, graphHeight);
-  
-  // Área de dibujo de la gráfica (con padding)
+
   float plotX = graphX + padding;
   float plotY = graphY + padding;
   float plotWidth = graphWidth - 2 * padding;
   float plotHeight = graphHeight - 2 * padding;
-  
-  // Obtener datos
+
   ArrayList<Float> zombieScores = null;
   ArrayList<Float> humanScores = null;
   int maxGenerations = 0;
@@ -786,20 +740,17 @@ void drawEvolutionGraph() {
   }
   
   if (maxGenerations == 0) return;
-  
-  // Agregar un pequeño margen a los valores
+
   float scoreRange = maxScore - minScore;
   if (scoreRange < 0.1) scoreRange = 1.0;
   minScore -= scoreRange * 0.1;
   maxScore += scoreRange * 0.1;
-  
-  // Dibujar ejes
+
   stroke(150, 150, 180);
   strokeWeight(2);
   line(plotX, plotY, plotX, plotY + plotHeight); // Eje Y
   line(plotX, plotY + plotHeight, plotX + plotWidth, plotY + plotHeight); // Eje X
-  
-  // Título
+
   fill(255, 255, 0);
   textSize(14);
   textAlign(CENTER);
@@ -808,8 +759,7 @@ void drawEvolutionGraph() {
     title += " (Promedio: " + movingAverageWindow + ")";
   }
   text(title, graphX + graphWidth/2, graphY + 15);
-  
-  // Etiquetas del eje Y
+
   fill(200, 220, 255);
   textSize(10);
   textAlign(RIGHT, CENTER);
@@ -817,37 +767,31 @@ void drawEvolutionGraph() {
     float y = plotY + plotHeight - (i * plotHeight / 4);
     float value = minScore + (maxScore - minScore) * i / 4;
     text(nf(value, 0, 1), plotX - 5, y);
-    
-    // Líneas de guía
+
     stroke(80, 80, 100, 100);
     strokeWeight(1);
     line(plotX, y, plotX + plotWidth, y);
   }
-  
-  // Etiquetas del eje X
+
   textAlign(CENTER, TOP);
   int step = max(1, maxGenerations / 10);
   for (int i = 0; i <= maxGenerations; i += step) {
     float x = maxGenerations > 1 ? plotX + (i * plotWidth / (maxGenerations - 1)) : plotX;
     text(i, x, plotY + plotHeight + 5);
   }
-  
-  // Etiqueta del eje X
+
   textSize(11);
   text("Generación", graphX + graphWidth/2, graphY + graphHeight - 5);
-  
-  // Etiqueta del eje Y
+
   pushMatrix();
   translate(graphX + 10, graphY + graphHeight/2);
   rotate(-HALF_PI);
   text("Score Máximo", 0, 0);
   popMatrix();
-  
-  // Dibujar líneas de evolución
+
   strokeWeight(3);
   noFill();
-  
-  // Línea de zombies (verde)
+
   if (zombieScores != null && zombieScores.size() > 0) {
     stroke(100, 255, 100);
     if (zombieScores.size() > 1) {
@@ -860,8 +804,7 @@ void drawEvolutionGraph() {
       }
       endShape();
     }
-    
-    // Puntos
+
     fill(100, 255, 100);
     noStroke();
     for (int i = 0; i < zombieScores.size(); i++) {
@@ -871,8 +814,7 @@ void drawEvolutionGraph() {
       ellipse(x, y, 6, 6);
     }
   }
-  
-  // Línea de humanos (rojo)
+
   if (humanScores != null && humanScores.size() > 0) {
     stroke(255, 100, 100);
     noFill();
@@ -886,8 +828,7 @@ void drawEvolutionGraph() {
       }
       endShape();
     }
-    
-    // Puntos
+
     fill(255, 100, 100);
     noStroke();
     for (int i = 0; i < humanScores.size(); i++) {
@@ -897,8 +838,7 @@ void drawEvolutionGraph() {
       ellipse(x, y, 6, 6);
     }
   }
-  
-  // Leyenda
+
   float legendX = plotX + plotWidth - 120;
   float legendY = plotY + 10;
   
@@ -923,27 +863,23 @@ void drawEvolutionGraph() {
 }
 
 void drawLargeEvolutionGraph() {
-  // Dimensiones para gráfica grande (pantalla completa)
   float margin = 80;
   float graphWidth = width - 2 * margin;
   float graphHeight = height - 180;
   float graphX = margin;
   float graphY = 120;
   float padding = 60;
-  
-  // Fondo de la gráfica
+
   fill(30, 30, 50, 250);
   stroke(100, 100, 150);
   strokeWeight(3);
   rect(graphX, graphY, graphWidth, graphHeight);
-  
-  // Área de dibujo de la gráfica (con padding)
+
   float plotX = graphX + padding;
   float plotY = graphY + padding;
   float plotWidth = graphWidth - 2 * padding;
   float plotHeight = graphHeight - 2 * padding;
-  
-  // Obtener datos
+
   ArrayList<Float> zombieScores = null;
   ArrayList<Float> humanScores = null;
   int maxGenerations = 0;
@@ -971,20 +907,17 @@ void drawLargeEvolutionGraph() {
   }
   
   if (maxGenerations == 0) return;
-  
-  // Agregar un pequeño margen a los valores
+
   float scoreRange = maxScore - minScore;
   if (scoreRange < 0.1) scoreRange = 1.0;
   minScore -= scoreRange * 0.1;
   maxScore += scoreRange * 0.1;
-  
-  // Dibujar ejes
+
   stroke(150, 150, 180);
   strokeWeight(3);
-  line(plotX, plotY, plotX, plotY + plotHeight); // Eje Y
-  line(plotX, plotY + plotHeight, plotX + plotWidth, plotY + plotHeight); // Eje X
-  
-  // Título
+  line(plotX, plotY, plotX, plotY + plotHeight);
+  line(plotX, plotY + plotHeight, plotX + plotWidth, plotY + plotHeight);
+
   fill(255, 255, 100);
   textSize(20);
   textAlign(CENTER);
@@ -993,8 +926,7 @@ void drawLargeEvolutionGraph() {
     title += " (Promedio: " + movingAverageWindow + ")";
   }
   text(title, graphX + graphWidth/2, graphY + 25);
-  
-  // Etiquetas del eje Y
+
   fill(200, 220, 255);
   textSize(14);
   textAlign(RIGHT, CENTER);
@@ -1002,37 +934,31 @@ void drawLargeEvolutionGraph() {
     float y = plotY + plotHeight - (i * plotHeight / 5);
     float value = minScore + (maxScore - minScore) * i / 5;
     text(nf(value, 0, 1), plotX - 10, y);
-    
-    // Líneas de guía
+
     stroke(80, 80, 100, 100);
     strokeWeight(1);
     line(plotX, y, plotX + plotWidth, y);
   }
-  
-  // Etiquetas del eje X
+
   textAlign(CENTER, TOP);
   int step = max(1, maxGenerations / 15);
   for (int i = 0; i <= maxGenerations; i += step) {
     float x = maxGenerations > 1 ? plotX + (i * plotWidth / (maxGenerations - 1)) : plotX;
     text(i, x, plotY + plotHeight + 10);
   }
-  
-  // Etiqueta del eje X
+
   textSize(16);
   text("Generación", graphX + graphWidth/2, graphY + graphHeight - 15);
-  
-  // Etiqueta del eje Y
+
   pushMatrix();
   translate(graphX + 15, graphY + graphHeight/2);
   rotate(-HALF_PI);
   text("Score Máximo", 0, 0);
   popMatrix();
-  
-  // Dibujar líneas de evolución
+
   strokeWeight(4);
   noFill();
-  
-  // Línea de zombies (verde)
+
   if (zombieScores != null && zombieScores.size() > 0) {
     stroke(100, 255, 100);
     if (zombieScores.size() > 1) {
@@ -1045,8 +971,7 @@ void drawLargeEvolutionGraph() {
       }
       endShape();
     }
-    
-    // Puntos
+
     fill(100, 255, 100);
     for (int i = 0; i < zombieScores.size(); i++) {
       float x = plotX + (i * plotWidth / (maxGenerations - 1));
@@ -1055,8 +980,7 @@ void drawLargeEvolutionGraph() {
       ellipse(x, y, 8, 8);
     }
   }
-  
-  // Línea de humanos (rojo)
+
   if (humanScores != null && humanScores.size() > 0) {
     stroke(255, 100, 100);
     noFill();
@@ -1070,8 +994,7 @@ void drawLargeEvolutionGraph() {
       }
       endShape();
     }
-    
-    // Puntos
+
     fill(255, 100, 100);
     for (int i = 0; i < humanScores.size(); i++) {
       float x = plotX + (i * plotWidth / (maxGenerations - 1));
@@ -1080,8 +1003,7 @@ void drawLargeEvolutionGraph() {
       ellipse(x, y, 8, 8);
     }
   }
-  
-  // Leyenda
+
   float legendX = plotX + plotWidth - 150;
   float legendY = plotY + 20;
   
@@ -1103,8 +1025,7 @@ void drawLargeEvolutionGraph() {
     textSize(14);
     text("Humanos (Mejor: " + nf(evolution.humanEvolutionTree.getBestNode().score, 0, 1) + ")", legendX + 15, legendY);
   }
-  
-  // Instrucciones
+
   fill(180, 180, 220);
   textAlign(CENTER);
   textSize(12);
@@ -1117,13 +1038,11 @@ ArrayList<Float> applyMovingAverage(ArrayList<Float> data, int windowSize) {
   }
   
   ArrayList<Float> smoothed = new ArrayList<Float>();
-  
-  // Agrupar datos en ventanas y calcular el promedio de cada ventana
+
   for (int i = 0; i < data.size(); i += windowSize) {
     float sum = 0;
     int count = 0;
-    
-    // Calcular promedio de la ventana actual
+
     int end = min(i + windowSize, data.size());
     for (int j = i; j < end; j++) {
       sum += data.get(j);
@@ -1136,7 +1055,6 @@ ArrayList<Float> applyMovingAverage(ArrayList<Float> data, int windowSize) {
   return smoothed;
 }
 
-// Función helper para dibujar un valor de genotipo con su delta
 void drawGenotypeValue(String label, float value, float parentValue, boolean hasParent, float x, float y) {
   fill(180, 180, 220);
   textAlign(LEFT);
@@ -1145,45 +1063,38 @@ void drawGenotypeValue(String label, float value, float parentValue, boolean has
   
   if (hasParent) {
     float delta = value - parentValue;
-    if (abs(delta) > 0.01) { // Solo mostrar si hay cambio significativo
+    if (abs(delta) > 0.01) {
       float deltaX = x + 85;
-      
-      // Color según si subió o bajó
+
       if (delta > 0) {
-        fill(100, 255, 100); // Verde para aumento
+        fill(100, 255, 100);
         text("+" + nf(delta, 0, 2), deltaX, y);
       } else {
-        fill(255, 100, 100); // Rojo para disminución
+        fill(255, 100, 100);
         text(nf(delta, 0, 2), deltaX, y);
       }
     }
   }
 }
 
-// Función para dibujar FPS en la esquina superior derecha
 void drawFPS() {
-  // Calcular FPS
   float fps = frameRate;
-  
-  // Determinar el área visible según el modo
+
   float rightEdge = width;
   if (trainingMode || showTreeMode) {
     rightEdge = simulationWidth;
   }
-  
-  // Fondo semi-transparente para mejor legibilidad
+
   fill(0, 0, 0, 150);
   noStroke();
   float boxWidth = 80;
   float boxHeight = 30;
   float margin = 10;
   rect(rightEdge - boxWidth - margin, margin, boxWidth, boxHeight, 5);
-  
-  // Texto de FPS con color según el rendimiento
+
   textAlign(CENTER, CENTER);
   textSize(16);
-  
-  // Color según FPS: Verde (>50), Amarillo (30-50), Rojo (<30)
+
   if (fps > 50) {
     fill(100, 255, 100);
   } else if (fps > 30) {

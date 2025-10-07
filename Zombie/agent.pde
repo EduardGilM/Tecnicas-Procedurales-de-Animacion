@@ -1,10 +1,10 @@
 class Agent {
     color c = #FF0000;
     float r = 6;
-    float baseMaxSpeed = 8;  // Velocidad base (se configura según tipo)
-    float baseMaxForce = 0.2; // Fuerza base (se configura según tipo)
-    float maxspeed = 8;  // Velocidad efectiva (base * multiplicador del genotipo)
-    float maxforce = 0.2; // Fuerza efectiva (base * multiplicador del genotipo)
+    float baseMaxSpeed = 8;  
+    float baseMaxForce = 0.2;
+    float maxspeed = 8;
+    float maxforce = 0.2;
     PVector velocity = new PVector(0, 0);
     PVector acceleration = new PVector(0, 0);
     PVector position = new PVector(0, 0);
@@ -46,7 +46,6 @@ class Agent {
   }
   
   void updatePhysicalAttributes() {
-    // Actualizar velocidad y fuerza máximas basadas en el genotipo
     if (this.genotype != null) {
       this.maxspeed = this.baseMaxSpeed * this.genotype.speedMultiplier;
       this.maxforce = this.baseMaxForce * this.genotype.forceMultiplier;
@@ -59,7 +58,6 @@ class Agent {
     this.position.add(this.velocity);
     this.acceleration.mult(0);
     
-    // Mantener dentro del área de simulación
     float rightLimit = width;
     float bottomLimit = height;
     if (trainingMode || showTreeMode) {
@@ -67,7 +65,6 @@ class Agent {
       bottomLimit = simulationBottomLimit;
     }
     
-    // Rebote en los bordes
     if (this.position.x < 0) {
       this.position.x = 0;
       this.velocity.x *= -1;
@@ -119,14 +116,12 @@ class Agent {
     PVector desired = null;
     PVector steer = new PVector(0, 0);
     float offset = 20;
-    
-    // Determinar el límite derecho basado en si estamos en modo entrenamiento
+
     float rightLimit = width - offset;
     if (trainingMode || showTreeMode) {
       rightLimit = simulationWidth - offset;
     }
-    
-    // Determinar el límite inferior basado en si hay gráfica
+
     float bottomLimit = height - offset;
     if (trainingMode || showTreeMode) {
       bottomLimit = simulationBottomLimit - offset;
@@ -345,7 +340,7 @@ class Agent {
     this.behaviors.put("separation", true);
     this.behaviors.put("alignment", true);
     this.behaviors.put("cohesion", true);
-    this.genotype = zombieGenotype.copy(); // Copiar el genotipo de los zombies
+    this.genotype = zombieGenotype.copy();
     this.baseMaxSpeed = ZOMBIE_BASE_SPEED;
     this.baseMaxForce = ZOMBIE_BASE_FORCE;
     this.updatePhysicalAttributes();
@@ -397,7 +392,6 @@ class Agent {
         if (!other.isZombie) {
           float d = PVector.dist(this.position, other.position);
           if (d < this.captureRadius) {
-            // Copiar el genotipo del zombie que captura
             other.becomeZombieWithGenotype(this.genotype);
           }
         }

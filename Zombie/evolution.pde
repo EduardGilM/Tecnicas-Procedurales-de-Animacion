@@ -90,13 +90,10 @@ class Evolution {
     
     TreeNode bestZombieNode = null;
     TreeNode bestHumanNode = null;
-    
-    // PASO 1: Añadir el nodo actual al árbol con su score ANTES de buscar el mejor para la siguiente generación
+
     if (evolveZombie && this.zombieEvolutionTree != null && this.agents.size() > 0) {
-      // El padre es el nodo del que proviene este genotipo (puede ser el mejor de la generación anterior)
       TreeNode parentNode = this.currentZombieNode != null ? this.currentZombieNode : this.zombieEvolutionTree.root;
-      
-      // Añadir el nuevo nodo con el genotipo ACTUAL y su score
+
       TreeNode newNode = this.zombieEvolutionTree.addNode(
         parentNode,
         this.generation + 1, 
@@ -125,14 +122,11 @@ class Evolution {
         this.currentHumanNode = newNode;
       }
     }
-    
-    // PASO 2: Ahora buscar el MEJOR nodo del árbol para usarlo como base de la siguiente generación
+
     if (evolveZombie && this.zombieEvolutionTree != null) {
       bestZombieNode = this.zombieEvolutionTree.getBestNode();
       if (bestZombieNode != null) {
-        // Copiar el genotipo del mejor
         this.zombieGenotype = bestZombieNode.genotype.copy();
-        // Actualizar el nodo actual para que apunte al mejor (será el padre de la siguiente)
         this.currentZombieNode = bestZombieNode;
       }
     }
@@ -144,8 +138,7 @@ class Evolution {
         this.currentHumanNode = bestHumanNode;
       }
     }
-    
-    // PASO 3: Mutar o cruzar el mejor genotipo para crear la siguiente generación
+
     if (evolveZombie) {
       this.secondZombieParent = null;
       if (this.crossoverRate > 0 && random(1.0) < this.evolutionType) {
