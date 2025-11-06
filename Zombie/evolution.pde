@@ -178,7 +178,8 @@ class Evolution {
   }
   
   float calculateHumanScore() {
-    float score = this.maxTime - this.timeRemaining;
+    // Los humanos reciben mejor score mientras MÁS tiempo sobreviven
+    float score = this.timeRemaining;
     
     if (this.countAgents) {
       int humanCount = 0;
@@ -187,7 +188,8 @@ class Evolution {
           humanCount++;
         }
       }
-      score += humanCount;
+      // Añadimos un bonus por el número de humanos que sobreviven
+      score += humanCount * 2; // Multiplicador mayor para premiar supervivencia
     }
     
     return score;
@@ -357,7 +359,7 @@ class Evolution {
     }
     if (random(1.0) < this.mutationRate) {
       this.humanGenotype.evadeMultiplier += random(-this.evolutionRate, this.evolutionRate);
-      this.humanGenotype.evadeMultiplier = constrain(this.humanGenotype.evadeMultiplier, 0.5, 6);
+      this.humanGenotype.evadeMultiplier = constrain(this.humanGenotype.evadeMultiplier, 0.5, 8); // Rango mayor para evasión
     }
     if (random(1.0) < this.mutationRate) {
       this.humanGenotype.pathFollowMultiplier += random(-this.evolutionRate, this.evolutionRate);
@@ -373,11 +375,11 @@ class Evolution {
     }
     if (random(1.0) < this.mutationRate) {
       this.humanGenotype.speedMultiplier += random(-this.evolutionRate, this.evolutionRate);
-      this.humanGenotype.speedMultiplier = constrain(this.humanGenotype.speedMultiplier, 0.7, 3);
+      this.humanGenotype.speedMultiplier = constrain(this.humanGenotype.speedMultiplier, 0.8, 3); // Rango más amplio de velocidad
     }
     if (random(1.0) < this.mutationRate) {
       this.humanGenotype.forceMultiplier += random(-this.evolutionRate, this.evolutionRate);
-      this.humanGenotype.forceMultiplier = constrain(this.humanGenotype.forceMultiplier, 0.7, 2);
+      this.humanGenotype.forceMultiplier = constrain(this.humanGenotype.forceMultiplier, 0.8, 2.5); // Rango más amplio de fuerza
     }
   }
   

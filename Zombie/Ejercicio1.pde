@@ -1,7 +1,7 @@
 int TRIANGLE_COUNT = 201;
 float TRIANGLE_SIZE = 6;
-int TRAINING_STEPS = 180;
-boolean evolveZombie = true; 
+int TRAINING_STEPS = 50;
+boolean evolveZombie = false; 
 boolean evolveHuman = true;
 boolean countAgents = true;
 
