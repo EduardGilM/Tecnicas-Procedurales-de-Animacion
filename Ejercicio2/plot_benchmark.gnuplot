@@ -2,7 +2,7 @@
 set terminal png size 1200,800 enhanced font 'Arial,12'
 set output 'benchmark_plot.png'
 
-set title 'Rendimiento del Algoritmo A* (1000 iteraciones por tamaño)' font 'Arial,16'
+set title 'Rendimiento del Algoritmo A* (100 iteraciones por tamaño)' font 'Arial,16'
 set xlabel 'Tamaño del Grid (n x n)' font 'Arial,14'
 set ylabel 'Tiempo promedio (ms)' font 'Arial,14'
 

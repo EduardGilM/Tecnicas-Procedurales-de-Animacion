@@ -1,11 +1,17 @@
 Grid grid;
 AStar astar;
+AStarVisualizer pathfinder;
 ArrayList<Node> path;
 ArrayList<Boid> boids;
+ArrayList<Node> exploredNodes;
+ArrayList<Node> openNodes;
 int gridSize = 20;
 int cellSize;
 int mode = 0;
 boolean showBoids = false;
+boolean showPathfindingVisualization = true;
+boolean calculatingPath = false;
+int stepsPerFrame = 5;
 
 Node startNode;
 Node goalNode;
@@ -14,9 +20,11 @@ boolean benchmarkRunning = false;
 int currentBenchmarkSize = 20;
 int maxBenchmarkSize = 150;
 int benchmarkStep = 10;
-int benchmarkIterations = 1000;
+int benchmarkIterations = 100;
 int currentIteration = 0;
 ArrayList<Float> currentSizeTimes;
+ArrayList<Integer> currentSizeExploredNodes;
+float benchmarkObstaclePercentage = 0.2; // Porcentaje de obstáculos para el benchmark
 
 void setup() {
   size(800, 800);
@@ -25,8 +33,11 @@ void setup() {
   grid = new Grid(gridSize, 0.03);
   astar = new AStar(grid);
   boids = new ArrayList<Boid>();
+  exploredNodes = new ArrayList<Node>();
+  openNodes = new ArrayList<Node>();
   benchmarkResults = new ArrayList<BenchmarkResult>();
   currentSizeTimes = new ArrayList<Float>();
+  currentSizeExploredNodes = new ArrayList<Integer>();
   
   startNode = grid.getNode(0, 0);
   goalNode = grid.getNode(gridSize - 1, gridSize - 1);
@@ -35,7 +46,7 @@ void setup() {
   
   if (path != null && path.size() > 0) {
     boids.add(new Boid(path.get(0).x * cellSize + cellSize/2, 
-                       path.get(0).y * cellSize + cellSize/2, path));
+                       path.get(0).y * cellSize + cellSize/2, path, boids));
   }
 }
 
@@ -43,6 +54,30 @@ void draw() {
   background(255);
   
   if (mode == 0) {
+    // Mostrar progreso del cálculo si está en marcha
+    if (calculatingPath && pathfinder != null) {
+      // Ejecutar múltiples pasos de la búsqueda
+      for (int i = 0; i < stepsPerFrame && calculatingPath; i++) {
+        calculatingPath = pathfinder.step();
+      }
+      
+      // Si terminó, guardar el resultado
+      if (!calculatingPath) {
+        path = pathfinder.getPath();
+        exploredNodes = pathfinder.getExploredNodes();
+        openNodes = pathfinder.getOpenNodes();
+        
+        // Actualizar boids con el nuevo camino
+        for (Boid b : boids) {
+          b.setPath(path);
+        }
+      }
+      
+      // Actualizar nodos explorados y abiertos en tiempo real
+      exploredNodes = pathfinder.getExploredNodes();
+      openNodes = pathfinder.getOpenNodes();
+    }
+    
     drawGrid();
     drawPath();
     
@@ -56,11 +91,21 @@ void draw() {
     fill(0);
     textAlign(LEFT);
     textSize(11);
-    text("Click: nuevo destino | 'O': añadir obstáculo | 'C': limpiar obstáculos", 10, height - 80);
-    text("'↑/↓': cambiar tamaño grid (±10) | '-': crear bandada | 'R': reiniciar", 10, height - 60);
-    text("'+': iniciar benchmark", 10, height - 40);
+    text("Click: nuevo destino | 'O': añadir obstáculo | 'C': limpiar obstáculos", 10, height - 100);
+    text("'↑/↓': cambiar tamaño grid (±10) | '-': crear bandada | 'R': reiniciar", 10, height - 80);
+    text("'+': iniciar benchmark | 'V': mostrar/ocultar visualización A*", 10, height - 60);
+    text("'1-9': cambiar % obstáculos benchmark (1-90%) | Obstáculos benchmark: " + nf(benchmarkObstaclePercentage * 100, 0, 1) + "%", 10, height - 40);
     text("Grid: " + gridSize + "x" + gridSize + " | Obstáculos: " + grid.getObstacleCount() + 
          " | Flocks: " + boids.size() + (showBoids ? " activos" : " inactivos"), 10, height - 20);
+    if (showPathfindingVisualization) {
+      text("Explorados: " + exploredNodes.size() + " | Abiertos: " + openNodes.size(), 10, height - 40);
+    }
+    if (calculatingPath) {
+      fill(255, 0, 0);
+      textSize(14);
+      textAlign(CENTER);
+      text("CALCULANDO CAMINO...", width/2, 30);
+    }
     
   } else if (mode == 1) {
     if (benchmarkRunning) {
@@ -79,8 +124,11 @@ void calculatePath() {
     goalNode = grid.getNode(gridSize - 1, gridSize - 1);
   }
   
+  exploredNodes.clear();
+  openNodes.clear();
+  
   if (startNode != null && goalNode != null && !startNode.isObstacle && !goalNode.isObstacle) {
-    path = astar.findPath(startNode, goalNode);
+    path = astar.findPathWithVisualization(startNode, goalNode, exploredNodes, openNodes);
   } else {
     path = null;
   }
@@ -113,6 +161,25 @@ void drawGrid() {
 }
 
 void drawPath() {
+  // Dibujar nodos explorados (cerrados)
+  if (exploredNodes != null && exploredNodes.size() > 0) {
+    fill(200, 200, 100, 120);
+    noStroke();
+    for (Node n : exploredNodes) {
+      rect(n.x * cellSize, n.y * cellSize, cellSize, cellSize);
+    }
+  }
+  
+  // Dibujar nodos abiertos
+  if (openNodes != null && openNodes.size() > 0) {
+    fill(100, 200, 255, 150);
+    noStroke();
+    for (Node n : openNodes) {
+      rect(n.x * cellSize, n.y * cellSize, cellSize, cellSize);
+    }
+  }
+  
+  // Dibujar camino final
   if (path != null && path.size() > 0) {
     fill(100, 150, 255, 100);
     noStroke();
@@ -120,7 +187,7 @@ void drawPath() {
       rect(n.x * cellSize, n.y * cellSize, cellSize, cellSize);
     }
     
-    stroke(0, 100, 255);
+    stroke(0, 0, 255);
     strokeWeight(3);
     noFill();
     beginShape();
@@ -140,11 +207,11 @@ void mousePressed() {
       goalNode = grid.getNode(gx, gy);
       
       if (goalNode != null && !goalNode.isObstacle) {
-        path = astar.findPath(startNode, goalNode);
-        
-        for (Boid b : boids) {
-          b.setPath(path);
-        }
+        // Iniciar cálculo del camino con visualización
+        pathfinder = new AStarVisualizer(grid, startNode, goalNode);
+        calculatingPath = true;
+        exploredNodes.clear();
+        openNodes.clear();
       }
     }
   }
@@ -166,6 +233,9 @@ void keyPressed() {
       }
     } else if (key == 'r' || key == 'R') {
       setup();
+    } else if (key == 'v' || key == 'V') {
+      showPathfindingVisualization = !showPathfindingVisualization;
+      println("Visualización A*: " + (showPathfindingVisualization ? "ACTIVADA" : "DESACTIVADA"));
     } else if (key == '-') {
       if (path != null && path.size() > 0) {
         boids.clear();
@@ -173,7 +243,7 @@ void keyPressed() {
           float offsetX = random(-cellSize, cellSize);
           float offsetY = random(-cellSize, cellSize);
           boids.add(new Boid(path.get(0).x * cellSize + cellSize/2 + offsetX, 
-                             path.get(0).y * cellSize + cellSize/2 + offsetY, path));
+                             path.get(0).y * cellSize + cellSize/2 + offsetY, path, boids));
         }
         showBoids = true;
         println("Bandada de " + boids.size() + " flocks creada!");
@@ -208,16 +278,23 @@ void keyPressed() {
     benchmarkRunning = true;
     benchmarkResults.clear();
     currentSizeTimes.clear();
+    currentSizeExploredNodes.clear();
     currentBenchmarkSize = 20;
     currentIteration = 0;
     println("\n========================================");
     println("INICIANDO BENCHMARK COMPLETO");
     println("Rango: 20x20 hasta 150x150 (paso 10)");
     println("Iteraciones por tamaño: 100");
+    println("% Obstáculos: " + nf(benchmarkObstaclePercentage * 100, 0, 1) + "%");
     println("========================================\n");
   } else if (key == 'n' || key == 'N') {
     mode = 0;
     benchmarkRunning = false;
+  } else if (key >= '1' && key <= '9') {
+    // Cambiar porcentaje de obstáculos (1-9 corresponde a 10%-90%)
+    int percentage = int(key) * 10;
+    benchmarkObstaclePercentage = percentage / 100.0;
+    println("Porcentaje de obstáculos para benchmark: " + nf(benchmarkObstaclePercentage * 100, 0, 1) + "%");
   }
 }
 
@@ -238,7 +315,7 @@ void runBenchmark() {
   int currentSizeIndex = ((currentBenchmarkSize - 20) / benchmarkStep) + 1;
   text("Tamaño: " + currentSizeIndex + "/" + totalSizes, width/2, height/2 + 60);
   
-  Grid testGrid = new Grid(currentBenchmarkSize, 0.03);
+  Grid testGrid = new Grid(currentBenchmarkSize, benchmarkObstaclePercentage);
   AStar testAStar = new AStar(testGrid);
   
   testGrid.getNode(0, 0).isObstacle = false;
@@ -258,6 +335,18 @@ void runBenchmark() {
   float timeMs = (endTime - startTime) / 1000000.0;
   currentSizeTimes.add(timeMs);
   
+  // Contar nodos explorados (nodos en lista cerrada)
+  int exploredCount = 0;
+  for (int i = 0; i < testGrid.size; i++) {
+    for (int j = 0; j < testGrid.size; j++) {
+      Node n = testGrid.getNode(i, j);
+      if (n.g != 0 || n.h != 0 || n.f != 0) {
+        exploredCount++;
+      }
+    }
+  }
+  currentSizeExploredNodes.add(exploredCount);
+  
   currentIteration++;
   
   if (currentIteration >= benchmarkIterations) {
@@ -273,13 +362,28 @@ void runBenchmark() {
     }
     float stdDev = sqrt(sumSq / currentSizeTimes.size());
     
-    BenchmarkResult result = new BenchmarkResult(currentBenchmarkSize, avg, stdDev);
+    // Calcular promedio y desviación de nodos explorados
+    int sumExplored = 0;
+    for (int e : currentSizeExploredNodes) {
+      sumExplored += e;
+    }
+    int avgExplored = sumExplored / currentSizeExploredNodes.size();
+    
+    int sumSqExplored = 0;
+    for (int e : currentSizeExploredNodes) {
+      sumSqExplored += (e - avgExplored) * (e - avgExplored);
+    }
+    int stdDevExplored = (int)sqrt(sumSqExplored / (float)currentSizeExploredNodes.size());
+    
+    BenchmarkResult result = new BenchmarkResult(currentBenchmarkSize, avg, stdDev, avgExplored, stdDevExplored);
     benchmarkResults.add(result);
     
     println("Completado " + currentBenchmarkSize + "x" + currentBenchmarkSize + ": " + 
-            "Media = " + nf(avg, 0, 3) + " ms, StdDev = " + nf(stdDev, 0, 3) + " ms");
+            "Media = " + nf(avg, 0, 3) + " ms, StdDev = " + nf(stdDev, 0, 3) + " ms, " +
+            "Nodos explorados = " + avgExplored + " ± " + stdDevExplored);
     
     currentSizeTimes.clear();
+    currentSizeExploredNodes.clear();
     currentIteration = 0;
     currentBenchmarkSize += benchmarkStep;
     
@@ -296,9 +400,10 @@ void runBenchmark() {
 
 BenchmarkResult benchmarkGridSize(int size, int iterations) {
   ArrayList<Float> times = new ArrayList<Float>();
+  ArrayList<Integer> exploredNodesList = new ArrayList<Integer>();
   
   for (int i = 0; i < iterations; i++) {
-    Grid testGrid = new Grid(size, 0.03);
+    Grid testGrid = new Grid(size, benchmarkObstaclePercentage);
     AStar testAStar = new AStar(testGrid);
     
     testGrid.getNode(0, 0).isObstacle = false;
@@ -316,6 +421,18 @@ BenchmarkResult benchmarkGridSize(int size, int iterations) {
     
     float timeMs = (endTime - startTime) / 1000000.0;
     times.add(timeMs);
+    
+    // Contar nodos explorados
+    int exploredCount = 0;
+    for (int x = 0; x < testGrid.size; x++) {
+      for (int y = 0; y < testGrid.size; y++) {
+        Node n = testGrid.getNode(x, y);
+        if (n.g != 0 || n.h != 0 || n.f != 0) {
+          exploredCount++;
+        }
+      }
+    }
+    exploredNodesList.add(exploredCount);
   }
   
   float sum = 0;
@@ -330,7 +447,20 @@ BenchmarkResult benchmarkGridSize(int size, int iterations) {
   }
   float stdDev = sqrt(sumSq / times.size());
   
-  return new BenchmarkResult(size, avg, stdDev);
+  // Calcular promedio y desviación de nodos explorados
+  int sumExplored = 0;
+  for (int e : exploredNodesList) {
+    sumExplored += e;
+  }
+  int avgExplored = sumExplored / exploredNodesList.size();
+  
+  int sumSqExplored = 0;
+  for (int e : exploredNodesList) {
+    sumSqExplored += (e - avgExplored) * (e - avgExplored);
+  }
+  int stdDevExplored = (int)sqrt(sumSqExplored / (float)exploredNodesList.size());
+  
+  return new BenchmarkResult(size, avg, stdDev, avgExplored, stdDevExplored);
 }
 
 void displayBenchmarkResults() {
@@ -377,7 +507,7 @@ void displayBenchmarkResults() {
   textSize(18);
   text("Rendimiento de A* - 100 iteraciones por tamaño", width/2, 30);
   textSize(12);
-  text("Rango: 20x20 a 150x150 (3% obstáculos)", width/2, 50);
+  text("Rango: 20x20 a 150x150 (" + nf(benchmarkObstaclePercentage * 100, 0, 1) + "% obstáculos)", width/2, 50);
   
   stroke(0, 100, 255);
   strokeWeight(2);
@@ -450,12 +580,12 @@ void displayBenchmarkResults() {
 
 void saveBenchmarkData() {
   PrintWriter output = createWriter("benchmark_data.txt");
-  output.println("# GridSize AvgTime(ms) StdDev(ms)");
+  output.println("# GridSize AvgTime(ms) StdDev(ms) AvgExploredNodes StdDevExplored");
   output.println("# Benchmark de A*: 20x20 a 150x150, 100 iteraciones por tamaño");
-  output.println("# 3% de obstáculos por grid");
+  output.println("# " + nf(benchmarkObstaclePercentage * 100, 0, 1) + "% de obstáculos por grid");
   
   for (BenchmarkResult r : benchmarkResults) {
-    output.println(r.gridSize + " " + r.avgTime + " " + r.stdDev);
+    output.println(r.gridSize + " " + r.avgTime + " " + r.stdDev + " " + r.avgExploredNodes + " " + r.stdDevExplored);
   }
   
   output.flush();
@@ -489,20 +619,27 @@ void saveBenchmarkData() {
   gnuplot.close();
   
   println("Script de gnuplot guardado en plot_benchmark.gnuplot");
-  println("\nPara generar la gráfica PNG, ejecuta en terminal:");
+  println("\nPara generar las gráficas PNG, ejecuta en terminal:");
   println("  gnuplot plot_benchmark.gnuplot");
-  println("\nSe generará el archivo: benchmark_plot.png");
+  println("\nSe generarán los archivos:");
+  println("  - benchmark_plot_time.png (Tiempo de ejecución)");
+  println("  - benchmark_plot_nodes.png (Nodos explorados)");
+  println("  - benchmark_plot_comparison.png (Comparación con dos ejes)");
 }
 
 class BenchmarkResult {
   int gridSize;
   float avgTime;
   float stdDev;
+  int avgExploredNodes;
+  int stdDevExplored;
   
-  BenchmarkResult(int size, float avg, float std) {
+  BenchmarkResult(int size, float avg, float std, int exploredAvg, int exploredStd) {
     gridSize = size;
     avgTime = avg;
     stdDev = std;
+    avgExploredNodes = exploredAvg;
+    stdDevExplored = exploredStd;
   }
 }
 
@@ -696,6 +833,73 @@ class AStar {
     return null;
   }
   
+  ArrayList<Node> findPathWithVisualization(Node start, Node goal, ArrayList<Node> explored, ArrayList<Node> open) {
+    grid.resetNodes();
+    
+    ArrayList<Node> openList = new ArrayList<Node>();
+    ArrayList<Node> closedList = new ArrayList<Node>();
+    
+    openList.add(start);
+    start.g = 0;
+    start.h = heuristic(start, goal);
+    start.f = start.g + start.h;
+    
+    while (openList.size() > 0) {
+      Node current = openList.get(0);
+      int currentIndex = 0;
+      
+      for (int i = 1; i < openList.size(); i++) {
+        if (openList.get(i).f < current.f) {
+          current = openList.get(i);
+          currentIndex = i;
+        }
+      }
+      
+      if (current.equals(goal)) {
+        // Guardar estado final de exploración
+        explored.clear();
+        explored.addAll(closedList);
+        open.clear();
+        open.addAll(openList);
+        return reconstructPath(current);
+      }
+      
+      openList.remove(currentIndex);
+      closedList.add(current);
+      
+      ArrayList<Node> neighbors = grid.getNeighbors(current);
+      
+      for (Node neighbor : neighbors) {
+        if (isInList(neighbor, closedList)) {
+          continue;
+        }
+        
+        float tentativeG = current.g + distance(current, neighbor);
+        
+        boolean inOpenList = isInList(neighbor, openList);
+        
+        if (!inOpenList || tentativeG < neighbor.g) {
+          neighbor.parent = current;
+          neighbor.g = tentativeG;
+          neighbor.h = heuristic(neighbor, goal);
+          neighbor.f = neighbor.g + neighbor.h;
+          
+          if (!inOpenList) {
+            openList.add(neighbor);
+          }
+        }
+      }
+    }
+    
+    // Guardar estado final incluso si no hay camino
+    explored.clear();
+    explored.addAll(closedList);
+    open.clear();
+    open.addAll(openList);
+    
+    return null;
+  }
+  
   float heuristic(Node a, Node b) {
     return abs(a.x - b.x) + abs(a.y - b.y);
   }
@@ -733,18 +937,29 @@ class Boid {
   PVector acceleration;
   ArrayList<Node> path;
   int currentWaypoint;
+  ArrayList<Boid> flock; // Referencia a todos los boids de la bandada
   
-  float maxSpeed = 4.0;
-  float maxForce = 0.15;
+  float maxSpeed = 3.0;
+  float maxForce = 0.2;
+  float perceptionRadius = 50;
+  float separationRadius = 30;
   float waypointRadius;
   
-  Boid(float x, float y, ArrayList<Node> path) {
+  // Pesos de los comportamientos
+  float separationWeight = 2;
+  float alignmentWeight = 1.0;
+  float cohesionWeight = 1.0;
+  float pathWeight = 2.0;
+  float avoidanceWeight = 2.0;
+  
+  Boid(float x, float y, ArrayList<Node> path, ArrayList<Boid> flock) {
     position = new PVector(x, y);
     velocity = new PVector(random(-1, 1), random(-1, 1));
     acceleration = new PVector(0, 0);
     this.path = path;
+    this.flock = flock;
     currentWaypoint = 0;
-    waypointRadius = max(cellSize * 0.7, 10);
+    waypointRadius = max(cellSize * 0.5, 8);
   }
   
   void setPath(ArrayList<Node> newPath) {
@@ -753,60 +968,28 @@ class Boid {
   }
   
   void update() {
-    if (path != null && path.size() > 0 && currentWaypoint < path.size()) {
-      Node target = path.get(currentWaypoint);
-      PVector targetPos = new PVector(target.x * cellSize + cellSize/2, 
-                                       target.y * cellSize + cellSize/2);
-      
-      PVector desired = PVector.sub(targetPos, position);
-      float d = desired.mag();
-      
-      if (d < waypointRadius) {
-        currentWaypoint++;
-        if (currentWaypoint >= path.size()) {
-          currentWaypoint = path.size() - 1;
-        }
-      }
-      
-      if (d > 0) {
-        desired.normalize();
-        
-        float arrivalRadius = cellSize * 2.5;
-        
-        if (d < arrivalRadius) {
-          float m = map(d, 0, arrivalRadius, 0, maxSpeed);
-          m = max(m, maxSpeed * 0.3);
-          desired.mult(m);
-        } else {
-          desired.mult(maxSpeed);
-        }
-        
-        PVector steer = PVector.sub(desired, velocity);
-        steer.limit(maxForce);
-        
-        applyForce(steer);
-      }
-    } else if (path != null && path.size() > 0) {
-      Node target = path.get(path.size() - 1);
-      PVector targetPos = new PVector(target.x * cellSize + cellSize/2, 
-                                       target.y * cellSize + cellSize/2);
-      PVector desired = PVector.sub(targetPos, position);
-      float d = desired.mag();
-      
-      if (d > 1) {
-        desired.normalize();
-        float m = map(d, 0, cellSize * 2, 0, maxSpeed);
-        m = constrain(m, 0, maxSpeed * 0.5);
-        desired.mult(m);
-        
-        PVector steer = PVector.sub(desired, velocity);
-        steer.limit(maxForce * 0.5);
-        applyForce(steer);
-      } else {
-        velocity.mult(0.85);
-      }
-    }
+    // Aplicar comportamientos de flocking
+    PVector separation = separate();   // Separación de otros boids
+    PVector alignment = align();       // Alineación con otros boids
+    PVector cohesion = cohede();       // Cohesión con otros boids
+    PVector pathFollowing = followPath(); // Seguimiento del camino
+    PVector avoidance = avoidObstacles(); // Evasión de obstáculos
     
+    // Aplicar pesos a cada comportamiento
+    separation.mult(separationWeight);
+    alignment.mult(alignmentWeight);
+    cohesion.mult(cohesionWeight);
+    pathFollowing.mult(pathWeight);
+    avoidance.mult(avoidanceWeight);
+    
+    // Sumar todas las fuerzas
+    applyForce(separation);
+    applyForce(alignment);
+    applyForce(cohesion);
+    applyForce(pathFollowing);
+    applyForce(avoidance);
+    
+    // Actualizar velocidad y posición
     velocity.add(acceleration);
     velocity.limit(maxSpeed);
     position.add(velocity);
@@ -814,6 +997,181 @@ class Boid {
     
     position.x = constrain(position.x, 0, width);
     position.y = constrain(position.y, 0, height);
+  }
+  
+  // Separación: evitar que otros boids se acerquen demasiado
+  PVector separate() {
+    PVector steer = new PVector(0, 0);
+    int count = 0;
+    
+    for (Boid other : flock) {
+      float d = PVector.dist(position, other.position);
+      
+      if (d > 0 && d < separationRadius) {
+        // Calcular vector de repulsión
+        PVector diff = PVector.sub(position, other.position);
+        diff.normalize();
+        diff.div(d);
+        steer.add(diff);
+        count++;
+      }
+    }
+    
+    if (count > 0) {
+      steer.div(count);
+      steer.normalize();
+      steer.mult(maxSpeed);
+      steer.sub(velocity);
+      steer.limit(maxForce);
+    }
+    
+    return steer;
+  }
+  
+  // Alineación: intentar orientarse en la misma dirección que los vecinos
+  PVector align() {
+    PVector avg = new PVector(0, 0);
+    int count = 0;
+    
+    for (Boid other : flock) {
+      float d = PVector.dist(position, other.position);
+      
+      if (d > 0 && d < perceptionRadius) {
+        avg.add(other.velocity);
+        count++;
+      }
+    }
+    
+    if (count > 0) {
+      avg.div(count);
+      avg.normalize();
+      avg.mult(maxSpeed);
+      PVector steer = PVector.sub(avg, velocity);
+      steer.limit(maxForce);
+      return steer;
+    }
+    
+    return new PVector(0, 0);
+  }
+  
+  // Cohesión: intentar ir hacia el centroide de los vecinos
+  PVector cohede() {
+    PVector avg = new PVector(0, 0);
+    int count = 0;
+    
+    for (Boid other : flock) {
+      float d = PVector.dist(position, other.position);
+      
+      if (d > 0 && d < perceptionRadius) {
+        avg.add(other.position);
+        count++;
+      }
+    }
+    
+    if (count > 0) {
+      avg.div(count);
+      PVector desired = PVector.sub(avg, position);
+      
+      if (desired.mag() > 0) {
+        desired.normalize();
+        desired.mult(maxSpeed);
+        PVector steer = PVector.sub(desired, velocity);
+        steer.limit(maxForce);
+        return steer;
+      }
+    }
+    
+    return new PVector(0, 0);
+  }
+  
+  // Seguimiento del camino
+  PVector followPath() {
+    PVector steer = new PVector(0, 0);
+    
+    if (path != null && path.size() > 0) {
+      // Actualizar waypoint si es necesario
+      if (currentWaypoint < path.size()) {
+        Node target = path.get(currentWaypoint);
+        PVector targetPos = new PVector(target.x * cellSize + cellSize/2, 
+                                         target.y * cellSize + cellSize/2);
+        
+        float d = PVector.dist(position, targetPos);
+        
+        // Avanzar al siguiente waypoint si estamos cerca
+        if (d < waypointRadius && currentWaypoint < path.size() - 1) {
+          currentWaypoint++;
+        }
+      }
+      
+      // Calcular dirección hacia el waypoint actual
+      if (currentWaypoint < path.size()) {
+        Node target = path.get(currentWaypoint);
+        PVector targetPos = new PVector(target.x * cellSize + cellSize/2, 
+                                         target.y * cellSize + cellSize/2);
+        
+        PVector desired = PVector.sub(targetPos, position);
+        float d = desired.mag();
+        
+        if (d > 0) {
+          desired.normalize();
+          
+          // Reducir velocidad al acercarse al final del camino
+          if (currentWaypoint >= path.size() - 2) {
+            float m = map(d, 0, cellSize * 3, 0, maxSpeed);
+            desired.mult(m);
+          } else {
+            desired.mult(maxSpeed);
+          }
+          
+          steer = PVector.sub(desired, velocity);
+          steer.limit(maxForce);
+        }
+      }
+    }
+    
+    return steer;
+  }
+  
+  // Evasión de obstáculos
+  PVector avoidObstacles() {
+    PVector steer = new PVector(0, 0);
+    float detectionDistance = 40;
+    
+    // Revisar celdas del grid alrededor del boid
+    int gridX = (int)(position.x / cellSize);
+    int gridY = (int)(position.y / cellSize);
+    
+    // Verificar un área cuadrada alrededor del boid
+    for (int i = gridX - 2; i <= gridX + 2; i++) {
+      for (int j = gridY - 2; j <= gridY + 2; j++) {
+        if (i >= 0 && i < gridSize && j >= 0 && j < gridSize) {
+          Node n = grid.getNode(i, j);
+          if (n.isObstacle) {
+            // Centro de la celda obstáculo
+            PVector obsPos = new PVector(i * cellSize + cellSize/2, 
+                                          j * cellSize + cellSize/2);
+            float d = PVector.dist(position, obsPos);
+            
+            if (d < detectionDistance) {
+              // Vector de repulsión proporcional a la proximidad
+              PVector repulsion = PVector.sub(position, obsPos);
+              repulsion.normalize();
+              repulsion.mult(1.0 / (d + 1));
+              steer.add(repulsion);
+            }
+          }
+        }
+      }
+    }
+    
+    if (steer.mag() > 0) {
+      steer.normalize();
+      steer.mult(maxSpeed);
+      steer.sub(velocity);
+      steer.limit(maxForce);
+    }
+    
+    return steer;
   }
   
   void applyForce(PVector force) {
@@ -831,20 +1189,145 @@ class Boid {
     stroke(0);
     strokeWeight(1);
     beginShape();
-    vertex(15, 0);
-    vertex(-8, 5);
-    vertex(-8, -5);
+    vertex(12, 0);
+    vertex(-6, 4);
+    vertex(-4, 0);
+    vertex(-6, -4);
     endShape(CLOSE);
     
     popMatrix();
+  }
+}
+
+// ====================================
+// ASTAR VISUALIZER - Búsqueda paso a paso
+// ====================================
+
+class AStarVisualizer {
+  Grid grid;
+  Node start;
+  Node goal;
+  ArrayList<Node> openList;
+  ArrayList<Node> closedList;
+  ArrayList<Node> path;
+  boolean finished;
+  
+  AStarVisualizer(Grid grid, Node start, Node goal) {
+    this.grid = grid;
+    this.start = start;
+    this.goal = goal;
+    this.openList = new ArrayList<Node>();
+    this.closedList = new ArrayList<Node>();
+    this.path = null;
+    this.finished = false;
     
-    if (path != null && currentWaypoint < path.size()) {
-      Node target = path.get(currentWaypoint);
-      fill(255, 0, 0, 100);
-      noStroke();
-      ellipse(target.x * cellSize + cellSize/2, 
-              target.y * cellSize + cellSize/2, 
-              waypointRadius * 2, waypointRadius * 2);
+    grid.resetNodes();
+    
+    openList.add(start);
+    start.g = 0;
+    start.h = heuristic(start, goal);
+    start.f = start.g + start.h;
+  }
+  
+  // Ejecuta un paso de la búsqueda A*
+  boolean step() {
+    if (finished || openList.size() == 0) {
+      finished = true;
+      return false;
     }
+    
+    // Encontrar el nodo con menor f en la lista abierta
+    Node current = openList.get(0);
+    int currentIndex = 0;
+    
+    for (int i = 1; i < openList.size(); i++) {
+      if (openList.get(i).f < current.f) {
+        current = openList.get(i);
+        currentIndex = i;
+      }
+    }
+    
+    // Si llegamos al objetivo, reconstruir camino
+    if (current.equals(goal)) {
+      path = reconstructPath(current);
+      finished = true;
+      return false;
+    }
+    
+    // Mover nodo de abierto a cerrado
+    openList.remove(currentIndex);
+    closedList.add(current);
+    
+    // Expandir vecinos
+    ArrayList<Node> neighbors = grid.getNeighbors(current);
+    
+    for (Node neighbor : neighbors) {
+      if (isInList(neighbor, closedList)) {
+        continue;
+      }
+      
+      float tentativeG = current.g + distance(current, neighbor);
+      
+      boolean inOpenList = isInList(neighbor, openList);
+      
+      if (!inOpenList || tentativeG < neighbor.g) {
+        neighbor.parent = current;
+        neighbor.g = tentativeG;
+        neighbor.h = heuristic(neighbor, goal);
+        neighbor.f = neighbor.g + neighbor.h;
+        
+        if (!inOpenList) {
+          openList.add(neighbor);
+        }
+      }
+    }
+    
+    return true; // Sigue buscando
+  }
+  
+  ArrayList<Node> getExploredNodes() {
+    return new ArrayList<Node>(closedList);
+  }
+  
+  ArrayList<Node> getOpenNodes() {
+    return new ArrayList<Node>(openList);
+  }
+  
+  ArrayList<Node> getPath() {
+    return path;
+  }
+  
+  boolean isFinished() {
+    return finished;
+  }
+  
+  float heuristic(Node a, Node b) {
+    return abs(a.x - b.x) + abs(a.y - b.y);
+  }
+  
+  float distance(Node a, Node b) {
+    float dx = abs(a.x - b.x);
+    float dy = abs(a.y - b.y);
+    return sqrt(dx*dx + dy*dy);
+  }
+  
+  boolean isInList(Node node, ArrayList<Node> list) {
+    for (Node n : list) {
+      if (n.equals(node)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  
+  ArrayList<Node> reconstructPath(Node current) {
+    ArrayList<Node> reconstructedPath = new ArrayList<Node>();
+    
+    while (current != null) {
+      reconstructedPath.add(0, current);
+      current = current.parent;
+    }
+    
+    return reconstructedPath;
   }
 }

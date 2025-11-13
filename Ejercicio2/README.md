@@ -7,9 +7,11 @@ Sistema completo de path planning usando el algoritmo A* con benchmarking y floc
 ### Tarea A: Benchmarking de Rendimiento
 - **100 iteraciones** por cada tamaño de grid
 - Rango: **20×20** hasta **150×150** (pasos de 10)
-- Cada iteración genera un grid nuevo con **3% de obstáculos** en posiciones aleatorias
-- Calcula **media** y **desviación estándar** para cada tamaño
-- Genera archivos para visualización con **gnuplot**
+- Cada iteración genera un grid nuevo con **90% de obstáculos** en posiciones aleatorias
+- Calcula **media** y **desviación estándar** para cada tamaño tanto en:
+  - **Tiempo de ejecución** (ms)
+  - **Nodos explorados** durante la búsqueda
+- Genera archivos para visualización con **gnuplot** y **matplotlib**
 
 ### Tarea B: Flocking con Comportamiento Seek
 - Boids que siguen el path generado por A*
@@ -54,32 +56,57 @@ El benchmark ejecutará automáticamente:
 
 ## 📊 Generación de Gráficas
 
-Al finalizar el benchmark, se generan automáticamente:
-
-### Archivos Generados
+### Archivos de Datos
 
 1. **`benchmark_data.txt`**: Datos en formato texto
    ```
-   # GridSize AvgTime(ms) StdDev(ms)
-   20 0.523 0.142
-   30 1.234 0.287
-   40 2.456 0.432
+   # GridSize AvgTime(ms) StdDev(ms) AvgExploredNodes StdDevExplored
+   20 0.523 0.142 245 18
+   30 1.234 0.287 512 34
+   40 2.456 0.432 892 56
    ...
    ```
 
 2. **`plot_benchmark.gnuplot`**: Script para gnuplot
 
-### Crear Gráfica PNG con Gnuplot
+3. **`plot_benchmark.py`**: Script Python para generar gráficas con matplotlib
+
+### Con Gnuplot
 
 ```bash
 gnuplot plot_benchmark.gnuplot
 ```
 
-Esto generará **`benchmark_plot.png`** con:
-- Eje X: Tamaño del grid (n × n)
-- Eje Y: Tiempo promedio en milisegundos
-- Puntos con barras de error (media ± desviación estándar)
-- Línea continua conectando los puntos
+Esto generará **3 archivos PNG**:
+
+1. **`benchmark_plot_time.png`**: Tiempo de ejecución
+   - Eje X: Tamaño del grid (n × n)
+   - Eje Y: Tiempo promedio en milisegundos
+   - Puntos con barras de error (media ± desviación estándar)
+   - Línea continua conectando los puntos
+
+2. **`benchmark_plot_nodes.png`**: Nodos explorados
+   - Eje X: Tamaño del grid (n × n)
+   - Eje Y: Nodos explorados en promedio
+   - Puntos con barras de error (media ± desviación estándar)
+   - Línea continua conectando los puntos
+
+3. **`benchmark_plot_comparison.png`**: Comparación con dos ejes
+   - Eje X: Tamaño del grid (n × n)
+   - Eje Y izquierdo: Tiempo promedio (ms) - color azul
+   - Eje Y derecho: Nodos explorados - color naranja
+   - Permite visualizar la correlación entre ambas métricas
+
+### Con Python/Matplotlib
+
+```bash
+python plot_benchmark.py
+```
+
+Genera las siguientes gráficas:
+- **`benchmark_plot.png`**: Comparación tiempo vs nodos explorados (2 subgráficas)
+- **`benchmark_plot_detailed.png`**: Análisis detallado de tiempo con ajuste polinómico
+- **`benchmark_plot_explored_nodes.png`**: Análisis detallado de nodos explorados
 
 ## 🧩 Algoritmo A*
 
