@@ -5,8 +5,13 @@ PBDSystem crea_tela(float alto,
     float dens,
     int n_alto,
     int n_ancho,
-    float stiffness,
-    float display_size){
+    float stiffness_struct,
+    float stiffness_shear,
+    float stiffness_bend,
+    float display_size,
+    boolean fijar_esquinas,
+    boolean horizontal,
+    float y_offset){
    
   int N = n_alto*n_ancho;
   float masa = dens*alto*ancho;
@@ -19,7 +24,13 @@ PBDSystem crea_tela(float alto,
   for (int i = 0; i< n_ancho;i++){
     for(int j = 0; j< n_alto;j++){
       Particle p = tela.particles.get(id);
-      p.location.set(dx*i,dy*j,0);
+      if(horizontal) {
+        // Tela horizontal en el plano XZ
+        p.location.set(dx*i, y_offset, dy*j);
+      } else {
+        // Tela vertical en el plano XY
+        p.location.set(dx*i, dy*j, 0);
+      }
       p.display_size = display_size;
 
       id++;
@@ -44,14 +55,14 @@ PBDSystem crea_tela(float alto,
       if(i>0){
         int idx = id - n_alto;
         Particle px = tela.particles.get(idx);
-        Constraint c = new DistanceConstraint(p,px,dx,stiffness, 0);
+        Constraint c = new DistanceConstraint(p,px,dx,stiffness_struct, 0);
         tela.add_constraint(c);
       }
 
       if(j>0){
         int idy = id - 1;
         Particle py = tela.particles.get(idy);
-        Constraint c = new DistanceConstraint(p,py,dy,stiffness, 0);
+        Constraint c = new DistanceConstraint(p,py,dy,stiffness_struct, 0);
         tela.add_constraint(c);
       }
       
@@ -61,7 +72,7 @@ PBDSystem crea_tela(float alto,
          int id_diag = (i-1)*n_alto + (j-1);
          Particle p_diag = tela.particles.get(id_diag);
          float diag_dist = sqrt(dx*dx + dy*dy);
-         Constraint c = new DistanceConstraint(p, p_diag, diag_dist, stiffness, 1);
+         Constraint c = new DistanceConstraint(p, p_diag, diag_dist, stiffness_shear, 1);
          tela.add_constraint(c);
       }
       // Diagonal (i+1, j-1)
@@ -69,7 +80,7 @@ PBDSystem crea_tela(float alto,
          int id_diag2 = (i-1)*n_alto + (j+1);
          Particle p_diag2 = tela.particles.get(id_diag2);
          float diag_dist = sqrt(dx*dx + dy*dy);
-         Constraint c = new DistanceConstraint(p, p_diag2, diag_dist, stiffness, 1);
+         Constraint c = new DistanceConstraint(p, p_diag2, diag_dist, stiffness_shear, 1);
          tela.add_constraint(c);
       }
       
@@ -79,33 +90,35 @@ PBDSystem crea_tela(float alto,
          Particle p2 = tela.particles.get(id + n_alto); // (i+1,j)
          Particle p3 = tela.particles.get(id - 1); // (i,j-1)
          Particle p4 = tela.particles.get(id + 1); // (i,j+1)
-         
-         Constraint c = new DihedralBendingConstraint(p1, p2, p3, p4, stiffness, 2);
+
+         Constraint c = new DihedralBendingConstraint(p1, p2, p3, p4, stiffness_bend, 2);
          tela.add_constraint(c);
       }
-      
+
       if(j < n_alto-1 && i > 0 && i < n_ancho-1){
          Particle p1 = tela.particles.get(id); // (i,j)
          Particle p2 = tela.particles.get(id + 1); // (i,j+1)
          Particle p3 = tela.particles.get(id - n_alto); // (i-1,j)
          Particle p4 = tela.particles.get(id + n_alto); // (i+1,j)
-         
-         Constraint c = new DihedralBendingConstraint(p1, p2, p3, p4, stiffness, 2);
+
+         Constraint c = new DihedralBendingConstraint(p1, p2, p3, p4, stiffness_bend, 2);
          tela.add_constraint(c);
       }
 
       id++;
     }
   }
-  
-  // Fijamos dos esquinas
-  id = n_alto-1;
-  tela.particles.get(id).set_bloqueada(true); 
-  
-  id = N-1;
-  tela.particles.get(id).set_bloqueada(true); 
-  
-  print("Tela creada con " + tela.particles.size() + " partículas y " + tela.constraints.size() + " restricciones."); 
-  
+
+  // Fijamos dos esquinas solo si está habilitado
+  if(fijar_esquinas){
+    id = n_alto-1;
+    tela.particles.get(id).set_bloqueada(true);
+
+    id = N-1;
+    tela.particles.get(id).set_bloqueada(true);
+  }
+
+  print("Tela creada con " + tela.particles.size() + " partículas y " + tela.constraints.size() + " restricciones.");
+
   return tela;
 }

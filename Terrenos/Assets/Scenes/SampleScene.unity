@@ -227,6 +227,8 @@ GameObject:
   - component: {fileID: 963194228}
   - component: {fileID: 963194227}
   - component: {fileID: 963194226}
+  - component: {fileID: 963194229}
+  - component: {fileID: 963194230}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -302,12 +304,42 @@ Transform:
   m_GameObject: {fileID: 963194225}
   serializedVersion: 2
   m_LocalRotation: {x: -0.02151214, y: 0.90432245, z: -0.4238295, w: 0.045900293}
-  m_LocalPosition: {x: 477, y: 183, z: 1098}
+  m_LocalPosition: {x: 477, y: 801, z: 356}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 49.87, y: 170.962, z: -6.934}
+--- !u!114 &963194229
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 963194225}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 00557caefa59d3340827888c7e9a789e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lookSensitivity: 2
+  panSpeed: 50
+  zoomSpeed: 500
+--- !u!114 &963194230
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 963194225}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 27ac6866053912b41988ffa2d0d68e32, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ballPrefab: {fileID: 8042082286696561302, guid: d2a65ccd2c926574584cb79e019c5011, type: 3}
+  shootForce: 5000
+  destroyDelay: 5
 --- !u!1 &1066683325
 GameObject:
   m_ObjectHideFlags: 0
@@ -319,6 +351,7 @@ GameObject:
   - component: {fileID: 1066683328}
   - component: {fileID: 1066683327}
   - component: {fileID: 1066683326}
+  - component: {fileID: 1066683329}
   m_Layer: 0
   m_Name: Terrain
   m_TagString: Untagged
@@ -341,7 +374,7 @@ TerrainCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_ProvidesContacts: 0
+  m_ProvidesContacts: 1
   m_Enabled: 1
   serializedVersion: 2
   m_TerrainData: {fileID: 15600000, guid: 04c80ff5b451ee849bf711959a460327, type: 2}
@@ -401,6 +434,23 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1066683329
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1066683325}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b636516b0181ac0428a7d6f5a716dc62, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  terrainMaterial: {fileID: 2100000, guid: 4b8030616c7c34647bfebde24ea6ea39, type: 2}
+  impactRadius: 20
+  bounceHeight: 200
+  waveSpeed: 2
+  decayTime: 3
 --- !u!1 &1328974634
 GameObject:
   m_ObjectHideFlags: 0

@@ -70,4 +70,50 @@ void AddWater_float(
     OutColor = backgroundInWater + (WaterColor * waterIntensity);
 }
 
+void ApplyImpactBounce_float(
+    float3 WorldPos,
+    float Time,
+    float3 ImpactPosition,
+    float ImpactTime,
+    float ImpactRadius,
+    float BounceHeight,
+    float WaveSpeed,
+    float Decay,
+    out float3 OutPosition
+)
+{
+    float timeSinceImpact = Time - ImpactTime;
+    
+    if (timeSinceImpact < 0.0 || timeSinceImpact > Decay)
+    {
+        OutPosition = WorldPos;
+        return;
+    }
+    
+    float dist = distance(WorldPos.xz, ImpactPosition.xz);
+    float decayFactor = 1.0 - (timeSinceImpact / Decay);
+    
+    float waveRadius = timeSinceImpact * WaveSpeed;
+    float waveDist = abs(dist - waveRadius);
+    
+    float waveEffect = 0.0;
+    if (waveDist < ImpactRadius)
+    {
+        waveEffect = 1.0 - (waveDist / ImpactRadius);
+        waveEffect *= sin(waveDist * 3.14159);
+    }
+    
+    float centerEffect = 0.0;
+    if (dist < ImpactRadius)
+    {
+        centerEffect = 1.0 - (dist / ImpactRadius);
+        centerEffect *= sin(timeSinceImpact * 15.0) * exp(-timeSinceImpact * 3.0);
+    }
+    
+    float bounce = (waveEffect + centerEffect) * BounceHeight * decayFactor;
+    
+    OutPosition = WorldPos;
+    OutPosition.y += bounce;
+}
+
 #endif
