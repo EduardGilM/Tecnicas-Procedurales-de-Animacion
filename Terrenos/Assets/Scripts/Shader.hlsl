@@ -70,50 +70,39 @@ void AddWater_float(
     OutColor = backgroundInWater + (WaterColor * waterIntensity);
 }
 
-void ApplyImpactBounce_float(
-    float3 WorldPos,
+void FortniteBounce_Object_float(
+    float3 ObjectPosition,
     float Time,
-    float3 ImpactPosition,
-    float ImpactTime,
-    float ImpactRadius,
-    float BounceHeight,
-    float WaveSpeed,
-    float Decay,
-    out float3 OutPosition
+    float ContactTime,
+    float3 ContactPointLocal,
+    float3 ContactDirectionLocal,
+    float BounceFrequency,
+    float BounceAmplitude,
+    float MaxContactDistance,
+    float MaxContactTime,
+    out float3 OutObjectPosition
 )
 {
-    float timeSinceImpact = Time - ImpactTime;
-    
-    if (timeSinceImpact < 0.0 || timeSinceImpact > Decay)
+    float timeSinceContact = Time - ContactTime;
+    if (timeSinceContact < 0.0 || timeSinceContact > MaxContactTime)
     {
-        OutPosition = WorldPos;
+        OutObjectPosition = ObjectPosition;
         return;
     }
-    
-    float dist = distance(WorldPos.xz, ImpactPosition.xz);
-    float decayFactor = 1.0 - (timeSinceImpact / Decay);
-    
-    float waveRadius = timeSinceImpact * WaveSpeed;
-    float waveDist = abs(dist - waveRadius);
-    
-    float waveEffect = 0.0;
-    if (waveDist < ImpactRadius)
-    {
-        waveEffect = 1.0 - (waveDist / ImpactRadius);
-        waveEffect *= sin(waveDist * 3.14159);
-    }
-    
-    float centerEffect = 0.0;
-    if (dist < ImpactRadius)
-    {
-        centerEffect = 1.0 - (dist / ImpactRadius);
-        centerEffect *= sin(timeSinceImpact * 15.0) * exp(-timeSinceImpact * 3.0);
-    }
-    
-    float bounce = (waveEffect + centerEffect) * BounceHeight * decayFactor;
-    
-    OutPosition = WorldPos;
-    OutPosition.y += bounce;
+
+    float bounce = sin(timeSinceContact * BounceFrequency) * BounceAmplitude;
+
+    float dist = length(ObjectPosition - ContactPointLocal);
+    float normalizedDist = dist / max(MaxContactDistance, 1e-5);
+
+    float normalizedTime = timeSinceContact / max(MaxContactTime, 1e-5);
+
+    float bounceAttenuation = 1.0;
+    bounceAttenuation -= normalizedDist;
+    bounceAttenuation -= normalizedTime;
+    bounceAttenuation = saturate(bounceAttenuation);
+
+    OutObjectPosition = ObjectPosition + (bounce * bounceAttenuation * ContactDirectionLocal);
 }
 
 #endif

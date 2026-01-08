@@ -65,7 +65,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Scripts\FreeCameraController.cs" />
-    <Compile Include="Assets\Scripts\TerrainImpactController.cs" />
+    <Compile Include="Assets\Scripts\Bounce.cs" />
     <Compile Include="Assets\Scripts\BallShooter.cs" />
   </ItemGroup>
   <ItemGroup>

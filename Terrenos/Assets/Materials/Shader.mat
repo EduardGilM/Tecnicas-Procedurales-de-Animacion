@@ -132,8 +132,11 @@ Material:
     - _BUILTIN_QueueControl: 0
     - _BUILTIN_QueueOffset: 0
     - _BlendFactor: 10
-    - _BounceHeight: 200
+    - _BounceAmplitude: 500
+    - _BounceFrecuency: 0
+    - _BounceHeight: 150
     - _BumpScale: 1
+    - _ContactTime: -10000
     - _Cutoff: 0.5
     - _Decay: 3
     - _DetailNormalMapScale: 1
@@ -141,8 +144,10 @@ Material:
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
-    - _ImpactRadius: 10
-    - _ImpactTime: 63.68
+    - _ImpactRadius: 30
+    - _ImpactTime: 30.9
+    - _MaxContactDistance: 500
+    - _MaxContactTime: 2
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
@@ -167,8 +172,10 @@ Material:
     - _ZWrite: 1
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _ContactDirectionLocal: {r: 0, g: 0, b: 0, a: 0}
+    - _ContactPointLocal: {r: 625.2654, g: 438.05234, b: 629.241, a: 0}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _ImpactPosition: {r: 584.5063, g: 585.4895, b: 721.419, a: 0}
+    - _ImpactPosition: {r: 516.7562, g: 305.61664, b: 554.50256, a: 0}
     - _WaterSpeed: {r: 4.22, g: 0, b: 0, a: 0}
   m_BuildTextureStacks: []
 --- !u!114 &4241703422898711276

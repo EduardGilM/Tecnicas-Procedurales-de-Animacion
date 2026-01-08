@@ -34,6 +34,13 @@ public class CreateTerrainBase : EditorWindow
     float erosionCoefficient = 0.1f; // c
     int erosionIterations = 10;
 
+    GameObject plantPrefab;
+    int plantCount = 100;
+    float plantMinScale = 0.8f;
+    float plantMaxScale = 1.2f;
+    float plantMinTerrainHeight = 0.0f;
+    bool plantAlignToNormal = false;
+
 
     // Add menu item to show the window
     [MenuItem ("TPA/Create terrain base")]
@@ -105,6 +112,19 @@ public class CreateTerrainBase : EditorWindow
         
         if (GUILayout.Button("Apply Thermal Erosion")) {
             ApplyThermalErosion(terrain, erosionThreshold, erosionCoefficient, erosionIterations);
+        }
+
+        GUILayout.Label("6. Plant Prefabs", EditorStyles.boldLabel);
+        plantPrefab = EditorGUILayout.ObjectField("Prefab", plantPrefab, typeof(GameObject), false) as GameObject;
+        plantCount = EditorGUILayout.IntField("Count", plantCount);
+        plantMinScale = EditorGUILayout.FloatField("Min Scale Mult", plantMinScale);
+        plantMaxScale = EditorGUILayout.FloatField("Max Scale Mult", plantMaxScale);
+        plantMinTerrainHeight = EditorGUILayout.FloatField("Min Spawn Height (World Y)", plantMinTerrainHeight);
+        plantAlignToNormal = EditorGUILayout.Toggle("Align To Normal", plantAlignToNormal);
+        
+        if (GUILayout.Button("Plant Prefabs On Terrain"))
+        {
+            PlantPrefabOnTerrain(terrain, plantPrefab, plantCount, plantMinScale, plantMaxScale, plantMinTerrainHeight, plantAlignToNormal, seed);
         }
 
         //End scroll view
@@ -426,4 +446,100 @@ public class CreateTerrainBase : EditorWindow
         Debug.Log("Thermal erosion applied with " + iterations + " iterations");
     }
 
-}
+    void PlantPrefabOnTerrain(
+        Terrain terrain,
+        GameObject prefab,
+        int count,
+        float minScaleMult,
+        float maxScaleMult,
+        float minTerrainHeight,
+        bool alignToNormal,
+        int seed
+    )
+    {
+        if (terrain == null)
+        {
+            Debug.LogError("Terrain is null");
+            return;
+        }
+
+        if (prefab == null)
+        {
+            Debug.LogError("Prefab is null");
+            return;
+        }
+
+        if (count <= 0)
+            return;
+
+        if (minScaleMult <= 0f || maxScaleMult <= 0f)
+        {
+            Debug.LogError("Scale multiplier must be > 0");
+            return;
+        }
+
+        if (maxScaleMult < minScaleMult)
+        {
+            float tmp = minScaleMult;
+            minScaleMult = maxScaleMult;
+            maxScaleMult = tmp;
+        }
+
+        UnityEngine.Random.InitState(seed);
+
+        TerrainData data = terrain.terrainData;
+        Vector3 terrainPos = terrain.transform.position;
+        Vector3 terrainSize = data.size;
+
+        GameObject parent = GameObject.Find("_Plant") ?? new GameObject("_Plant");
+
+        for (int i = 0; i < count; i++)
+        {
+            float x = UnityEngine.Random.Range(0f, terrainSize.x);
+            float z = UnityEngine.Random.Range(0f, terrainSize.z);
+
+            float y = terrain.SampleHeight(new Vector3(terrainPos.x + x, 0f, terrainPos.z + z)) + terrainPos.y;
+            if (y < minTerrainHeight)
+                continue;
+
+            Vector3 groundPos = new Vector3(terrainPos.x + x, y, terrainPos.z + z);
+
+            GameObject go = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+            if (go == null)
+                go = Instantiate(prefab);
+
+            Undo.RegisterCreatedObjectUndo(go, "Plant Prefab");
+
+            Transform t = go.transform;
+            Vector3 baseScale = t.localScale;
+
+            t.position = groundPos;
+            t.SetParent(parent.transform);
+
+            float mult = UnityEngine.Random.Range(minScaleMult, maxScaleMult);
+            t.localScale = baseScale * mult;
+
+            if (alignToNormal)
+            {
+                Vector3 normal = data.GetInterpolatedNormal(x / terrainSize.x, z / terrainSize.z);
+                t.rotation = Quaternion.FromToRotation(Vector3.up, normal);
+            }
+
+            Renderer[] renderers = go.GetComponentsInChildren<Renderer>();
+            if (renderers.Length > 0)
+            {
+                Bounds b = renderers[0].bounds;
+                for (int r = 1; r < renderers.Length; r++)
+                    b.Encapsulate(renderers[r].bounds);
+
+                float deltaY = groundPos.y - b.min.y;
+                t.position = new Vector3(t.position.x, t.position.y + deltaY, t.position.z);
+            }
+            else
+            {
+            }
+        }
+    }
+ 
+ }
+
