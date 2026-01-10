@@ -34,12 +34,17 @@ public class CreateTerrainBase : EditorWindow
     float erosionCoefficient = 0.1f; // c
     int erosionIterations = 10;
 
-    GameObject plantPrefab;
+    GameObject[] plantPrefabs;
     int plantCount = 100;
     float plantMinScale = 0.8f;
     float plantMaxScale = 1.2f;
     float plantMinTerrainHeight = 0.0f;
-    bool plantAlignToNormal = false;
+
+    GameObject[] rockPrefabs;
+    int rockCount = 100;
+    float rockMinScale = 0.8f;
+    float rockMaxScale = 1.2f;
+    float rockMinTerrainHeight = 0.0f;
 
 
     // Add menu item to show the window
@@ -115,16 +120,41 @@ public class CreateTerrainBase : EditorWindow
         }
 
         GUILayout.Label("6. Plant Prefabs", EditorStyles.boldLabel);
-        plantPrefab = EditorGUILayout.ObjectField("Prefab", plantPrefab, typeof(GameObject), false) as GameObject;
+        EditorGUI.indentLevel++;
+        plantPrefabs = EditorGUILayout.ObjectField("Prefab", plantPrefabs != null && plantPrefabs.Length > 0 ? plantPrefabs[0] : null, typeof(GameObject), false) is GameObject p && p != null
+            ? new[] { p }
+            : Array.Empty<GameObject>();
+        EditorGUI.indentLevel--;
+
         plantCount = EditorGUILayout.IntField("Count", plantCount);
         plantMinScale = EditorGUILayout.FloatField("Min Scale Mult", plantMinScale);
         plantMaxScale = EditorGUILayout.FloatField("Max Scale Mult", plantMaxScale);
         plantMinTerrainHeight = EditorGUILayout.FloatField("Min Spawn Height (World Y)", plantMinTerrainHeight);
-        plantAlignToNormal = EditorGUILayout.Toggle("Align To Normal", plantAlignToNormal);
         
+        var occupancy = new HashSet<Vector2Int>();
+
         if (GUILayout.Button("Plant Prefabs On Terrain"))
         {
-            PlantPrefabOnTerrain(terrain, plantPrefab, plantCount, plantMinScale, plantMaxScale, plantMinTerrainHeight, plantAlignToNormal, seed);
+            var cellSize = Mathf.Max(0.01f, plantMinScale);
+            PlantPrefabsOnTerrain(terrain, plantPrefabs, plantCount, plantMinScale, plantMaxScale, plantMinTerrainHeight, seed, "_Plant", alignToNormal: false, minDistance: cellSize, occupiedCells: occupancy, cellSize: cellSize, undoLabel: "Plant Prefab");
+        }
+
+        GUILayout.Label("7. Rock Prefabs", EditorStyles.boldLabel);
+        EditorGUI.indentLevel++;
+        rockPrefabs = EditorGUILayout.ObjectField("Prefab", rockPrefabs != null && rockPrefabs.Length > 0 ? rockPrefabs[0] : null, typeof(GameObject), false) is GameObject r && r != null
+            ? new[] { r }
+            : Array.Empty<GameObject>();
+        EditorGUI.indentLevel--;
+
+        rockCount = EditorGUILayout.IntField("Count", rockCount);
+        rockMinScale = EditorGUILayout.FloatField("Min Scale Mult", rockMinScale);
+        rockMaxScale = EditorGUILayout.FloatField("Max Scale Mult", rockMaxScale);
+        rockMinTerrainHeight = EditorGUILayout.FloatField("Min Spawn Height (World Y)", rockMinTerrainHeight);
+
+        if (GUILayout.Button("Place Rocks On Terrain"))
+        {
+            var cellSize = Mathf.Max(0.01f, rockMinScale);
+            PlantPrefabsOnTerrain(terrain, rockPrefabs, rockCount, rockMinScale, rockMaxScale, rockMinTerrainHeight, seed, "_Rocks", alignToNormal: true, minDistance: cellSize, occupiedCells: occupancy, cellSize: cellSize, undoLabel: "Place Rock");
         }
 
         //End scroll view
@@ -446,15 +476,20 @@ public class CreateTerrainBase : EditorWindow
         Debug.Log("Thermal erosion applied with " + iterations + " iterations");
     }
 
-    void PlantPrefabOnTerrain(
+    void PlantPrefabsOnTerrain(
         Terrain terrain,
-        GameObject prefab,
+        GameObject[] prefabs,
         int count,
         float minScaleMult,
         float maxScaleMult,
         float minTerrainHeight,
+        int seed,
+        string parentName,
         bool alignToNormal,
-        int seed
+        float minDistance,
+        HashSet<Vector2Int> occupiedCells,
+        float cellSize,
+        string undoLabel
     )
     {
         if (terrain == null)
@@ -463,9 +498,34 @@ public class CreateTerrainBase : EditorWindow
             return;
         }
 
-        if (prefab == null)
+        if (occupiedCells == null)
         {
-            Debug.LogError("Prefab is null");
+            Debug.LogError("occupiedCells is null");
+            return;
+        }
+
+        if (cellSize <= 0f)
+        {
+            Debug.LogError("cellSize must be > 0");
+            return;
+        }
+
+        if (prefabs == null || prefabs.Length == 0)
+        {
+            Debug.LogError("Prefabs list is null/empty");
+            return;
+        }
+
+        var validPrefabs = new List<GameObject>(prefabs.Length);
+        for (int i = 0; i < prefabs.Length; i++)
+        {
+            if (prefabs[i] != null)
+                validPrefabs.Add(prefabs[i]);
+        }
+
+        if (validPrefabs.Count == 0)
+        {
+            Debug.LogError("Prefabs list contains only null entries");
             return;
         }
 
@@ -486,15 +546,23 @@ public class CreateTerrainBase : EditorWindow
         }
 
         UnityEngine.Random.InitState(seed);
+        if (minDistance < 0f)
+            minDistance = 0f;
 
         TerrainData data = terrain.terrainData;
         Vector3 terrainPos = terrain.transform.position;
         Vector3 terrainSize = data.size;
 
-        GameObject parent = GameObject.Find("_Plant") ?? new GameObject("_Plant");
+        GameObject parent = GameObject.Find(parentName) ?? new GameObject(parentName);
 
-        for (int i = 0; i < count; i++)
+        int planted = 0;
+        int attempts = 0;
+        int maxAttempts = count * 20;
+
+        while (planted < count && attempts < maxAttempts)
         {
+            attempts++;
+
             float x = UnityEngine.Random.Range(0f, terrainSize.x);
             float z = UnityEngine.Random.Range(0f, terrainSize.z);
 
@@ -502,13 +570,23 @@ public class CreateTerrainBase : EditorWindow
             if (y < minTerrainHeight)
                 continue;
 
+            var cell = new Vector2Int(
+                Mathf.FloorToInt((terrainPos.x + x) / cellSize),
+                Mathf.FloorToInt((terrainPos.z + z) / cellSize)
+            );
+
+            if (occupiedCells.Contains(cell))
+                continue;
+
             Vector3 groundPos = new Vector3(terrainPos.x + x, y, terrainPos.z + z);
+
+            GameObject prefab = validPrefabs[UnityEngine.Random.Range(0, validPrefabs.Count)];
 
             GameObject go = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
             if (go == null)
                 go = Instantiate(prefab);
 
-            Undo.RegisterCreatedObjectUndo(go, "Plant Prefab");
+            Undo.RegisterCreatedObjectUndo(go, undoLabel);
 
             Transform t = go.transform;
             Vector3 baseScale = t.localScale;
@@ -516,14 +594,18 @@ public class CreateTerrainBase : EditorWindow
             t.position = groundPos;
             t.SetParent(parent.transform);
 
-            float mult = UnityEngine.Random.Range(minScaleMult, maxScaleMult);
-            t.localScale = baseScale * mult;
-
             if (alignToNormal)
             {
-                Vector3 normal = data.GetInterpolatedNormal(x / terrainSize.x, z / terrainSize.z);
-                t.rotation = Quaternion.FromToRotation(Vector3.up, normal);
+                var normal01 = data.GetInterpolatedNormal(x / terrainSize.x, z / terrainSize.z);
+                var worldNormal = terrain.transform.TransformDirection(normal01);
+                t.rotation = Quaternion.FromToRotation(Vector3.up, worldNormal) * t.rotation;
+
+                var yaw = UnityEngine.Random.Range(0f, 360f);
+                t.rotation = Quaternion.AngleAxis(yaw, worldNormal) * t.rotation;
             }
+
+            float mult = UnityEngine.Random.Range(minScaleMult, maxScaleMult);
+            t.localScale = baseScale * mult;
 
             Renderer[] renderers = go.GetComponentsInChildren<Renderer>();
             if (renderers.Length > 0)
@@ -535,9 +617,14 @@ public class CreateTerrainBase : EditorWindow
                 float deltaY = groundPos.y - b.min.y;
                 t.position = new Vector3(t.position.x, t.position.y + deltaY, t.position.z);
             }
-            else
-            {
-            }
+
+            occupiedCells.Add(cell);
+            planted++;
+        }
+
+        if (planted < count)
+        {
+            Debug.LogWarning($"Planted {planted}/{count}. Terrain height filter may be too strict (Min Spawn Height: {minTerrainHeight}), or max attempts reached ({maxAttempts}).");
         }
     }
  

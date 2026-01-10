@@ -7,13 +7,37 @@ public class FreeCameraController : MonoBehaviour
     public float panSpeed = 0.5f;
     public float zoomSpeed = 5f;
 
+    [Header("Material Property Control")]
+    public Material material;
+
+    public string snowInflateProperty = "SnowInflate";
+
+    public float snowInflateSpeed = 0.25f;
+
+    public bool clampSnowInflate = false;
+
+    public float snowInflateMin = 0f;
+    public float snowInflateMax = 1f;
+
+    private int snowInflatePropertyId;
+    private float snowInflateCurrent;
+
     private Vector3 lastMousePosition;
+
+    private void Awake()
+    {
+        snowInflatePropertyId = Shader.PropertyToID(snowInflateProperty);
+
+        if (material != null)
+            snowInflateCurrent = material.GetFloat(snowInflatePropertyId);
+    }
 
     void Update()
     {
         HandleRotation();
         HandlePanning();
         HandleZoom();
+        HandleSnowInflate();
     }
 
     private void HandleRotation()
@@ -42,5 +66,26 @@ public class FreeCameraController : MonoBehaviour
     {
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         transform.Translate(0, 0, scroll * zoomSpeed, Space.Self);
+    }
+
+    private void HandleSnowInflate()
+    {
+        if (material == null)
+            return;
+
+        float delta = 0f;
+        if (Input.GetKey(KeyCode.UpArrow))
+            delta += snowInflateSpeed * Time.deltaTime;
+        if (Input.GetKey(KeyCode.DownArrow))
+            delta -= snowInflateSpeed * Time.deltaTime;
+
+        if (Mathf.Approximately(delta, 0f))
+            return;
+
+        snowInflateCurrent += delta;
+        if (clampSnowInflate)
+            snowInflateCurrent = Mathf.Clamp(snowInflateCurrent, snowInflateMin, snowInflateMax);
+
+        material.SetFloat(snowInflatePropertyId, snowInflateCurrent);
     }
 }

@@ -29,29 +29,26 @@ void GetSnowMask_float(
     out float SnowMask
 )
 {
-    // Solo permitimos nieve si la normal apunta hacia arriba (Y > 0)
-    // Usamos un step o un saturate fuerte para eliminar las paredes
     float upwardFacing = saturate(WorldNormal.y);
     
-    // Mascara de altura
     float heightMask = (WorldPos.y - SnowHeight) / max(SnowFade, 0.0001);
     
-    // Combinamos: Solo si esta arriba de la altura Y mira hacia arriba
-    // Elevamos la normal a una potencia fija para que el corte en las paredes sea limpio
-    SnowMask = saturate(heightMask) * pow(upwardFacing, 10.0);
+   SnowMask = saturate(heightMask) * pow(upwardFacing, 10.0);
 }
 
 void ApplySnowColor_float(
     float4 InputColor,          
     UnityTexture2D SnowTexture,
     float3 WorldPos,
-    float Scale, // Usamos la misma escala que el triplanar
+    float Scale,
     float SnowMask,
+    float Snow,
     out float4 OutColor
 )
 {
+    float snowAmount = saturate(SnowMask * saturate(Snow));
     float4 cSnow = tex2D(SnowTexture, WorldPos.xz * Scale);
-    OutColor = lerp(InputColor, cSnow, SnowMask);
+    OutColor = lerp(InputColor, cSnow, snowAmount);
 }
 
 void AddWater_float(
@@ -70,7 +67,7 @@ void AddWater_float(
     OutColor = backgroundInWater + (WaterColor * waterIntensity);
 }
 
-void FortniteBounce_Object_float(
+void FortniteBounce_float(
     float3 ObjectPosition,
     float Time,
     float ContactTime,
